@@ -4,12 +4,37 @@
     "ignore": [
       "firebase.json",
       ".firebaserc",
+      ".gitignore",
       "firebase-debug.log",
+      ".git/**",
+      ".firebase/**",
       "README.md",
+      "*.cmd",
       "tools/**",
       "wamp/**",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "predeploy": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/sync-content.ps1",
+    "headers": [
+      {
+        "source": "**/*.@(jpg|jpeg|png|gif|webp|avif|mp4|webm)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html|js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache,must-revalidate"
+          }
+        ]
+      }
     ],
     "cleanUrls": true,
     "trailingSlash": false

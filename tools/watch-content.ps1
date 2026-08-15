@@ -9,7 +9,10 @@ function Get-ContentFingerprint {
   $items = @($sourceRoot, $headerRoot) | ForEach-Object {
     if (Test-Path -LiteralPath $_) {
       Get-ChildItem -LiteralPath $_ -File -Recurse -Force |
-        Where-Object { $_.Extension -match "^\.(jpg|jpeg|png|gif|bmp|webp|avif)$" }
+        Where-Object {
+          $_.Extension -match "^\.(jpg|jpeg|png|gif|bmp|webp|avif|mp4|webm|url)$" -or
+          $_.Name -ieq "README.md"
+        }
     }
   } | Sort-Object FullName | ForEach-Object {
     "$($_.FullName)|$($_.Length)|$($_.LastWriteTimeUtc.Ticks)"

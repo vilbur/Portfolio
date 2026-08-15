@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portfolio gallery regression fixture</title>
+    <link rel="stylesheet" href="../styles/main.css" />
+    <style>
+      .test-shell { width: var(--shell); margin: 24px auto; }
+      .test-case + .test-case { margin-top: 32px; }
+      .test-card { min-height: 80px; background: var(--ink-soft); }
+    </style>
+    <script src="test-catalog.js" defer></script>
+    <script src="../scripts/projects.js" defer></script>
+  </head>
+  <body>
+    <main class="test-shell">
+      <section class="test-case" data-test-count="1">
+        <div class="project-grid project-grid--cols-3"><div class="project-card test-card"></div></div>
+      </section>
+      <section class="test-case" data-test-count="2">
+        <div class="project-grid project-grid--cols-3">
+          <div class="project-card test-card"></div><div class="project-card test-card"></div>
+        </div>
+      </section>
+      <section class="test-case" data-test-count="3">
+        <div class="project-grid project-grid--cols-3">
+          <div class="project-card test-card"></div><div class="project-card test-card"></div><div class="project-card test-card"></div>
+        </div>
+      </section>
+      <section class="test-case" data-test-count="4">
+        <div class="project-grid project-grid--cols-4">
+          <div class="project-card test-card"></div><div class="project-card test-card"></div><div class="project-card test-card"></div><div class="project-card test-card"></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
