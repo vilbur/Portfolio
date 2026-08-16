@@ -16,9 +16,11 @@ Publikacni akce sama:
 - vytvori katalog galerii, projektu, titulku a typu media,
 - prida nove verze adres, aby prohlizec neukazoval stary obsah,
 - pred odeslanim zkontroluje, ze zadny soubor nechybi,
+- spusti test popisu a odkazu slozek,
+- sestavi cisty publikacni balicek bez testu, zaloh a pracovnich souboru,
 - publikuje pouze Firebase Hosting.
 
-Pri prvnim pouziti se automaticky stahne oficialni Firebase nastroj pro Windows a otevre se jednorazove prihlaseni ke Google uctu. Dalsi publikace jsou jeden dvojklik.
+Pri prvnim pouziti se otevre jednorazove prihlaseni ke Google uctu. Deployer pouzije bezny Firebase nastroj, pokud je nainstalovany, nebo lokalni behove prostredi dodane s Codexem. Samotna publikace AI nepouziva. Dalsi publikace jsou jeden dvojklik.
 
 ## Jak se obsah preklada do webu
 
@@ -28,8 +30,9 @@ Priklad:
 
 - prvni slozka = hlavni galerie (`Realtime Visualization`),
 - druha slozka = projekt nebo podgalerie (`Gallery`),
-- nazev souboru = viditelny popisek (`Gallery Exterior`),
-- cislo na zacatku = poradi; v popisku se nezobrazi.
+- nazev souboru a cislo na zacatku = pouze poradi; na webu se nezobrazuji.
+
+Viditelny titulek a popis obrazku se nacitaji vyhradne z vlozenych JPG metadata. Pole Title/Document Name se pouzije jako titulek a Comment/User Comment/Image Description jako popis. Metadata obrazku se zobrazuji pouze po otevreni obrazku v detailu; pod nahledy na hlavni strance nejsou zadne popisky. Pokud metadata chybi, nezobrazi se zadny titulek ani popis.
 
 Razeni je abecedni. Pro pevne poradi pouzij prefixy `01-`, `02-`, `03-`.
 
@@ -37,13 +40,15 @@ Podporovane formaty galerie: JPG, JPEG, PNG, GIF, BMP, WEBP, AVIF, MP4 a WEBM. V
 
 ## Popis a odkaz slozky
 
-Pro textovy popis kategorie nebo podgalerie vloz primo do jeji slozky soubor `README.md`. Podporovane jsou odstavce, nadpisy, tucny a kurzivni text, odkazy a cislovane i necislovane seznamy. HTML zapsane primo v Markdownu se nevykonava.
+Pro textovy popis galerie vloz primo do jeji slozky soubor `content.md`. Popis se zobrazi na hlavni portfolio strance primo pod nazvem odpovidajici kategorie nebo podgalerie. Podporovane jsou odstavce, nadpisy, tucny a kurzivni text, odkazy a cislovane i necislovane seznamy. HTML zapsane primo v Markdownu se nevykonava.
 
 Externi odkaz lze pridat libovolnym Windows `.url` souborem ve stejne slozce. Pouzije se hodnota `URL=` a pouze platna adresa zacinajici `https://` nebo `http://`. Neplatny nebo prazdny odkaz se na webu nezobrazi.
 
-Obrazky v hlavnim hornim karuselu patri do `Web/assets/header-carousel`. Jejich nazev souboru se stejne prevede na titulek.
+Obrazky v hlavnim hornim karuselu patri do `Web/assets/header-carousel`. Titulek a popis se i zde zobrazi pouze tehdy, kdyz jsou vlozene v metadata obrazku.
 
-`Web/assets/library` a soubory `Web/scripts/image-catalog.js` a `Web/scripts/header-carousel.js` jsou generovane. Neupravuji se rucne.
+Portret pro sekci About patri do `Portfolio/About`. Pri nahledu i publikaci se automaticky zkopiruje do webu a dostane novou verzi adresy, aby se po vymene nezobrazovala stara fotografie z cache.
+
+`Web/assets/library`, `Web/.deploy` a soubory `Web/scripts/image-catalog.js` a `Web/scripts/header-carousel.js` jsou generovane. Neupravuji se rucne. Slozka `.deploy` obsahuje pouze aktualni soubory, ktere se skutecne odeslou na Firebase.
 
 ## Bezpecnost publikace
 

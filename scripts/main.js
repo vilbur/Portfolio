@@ -110,25 +110,87 @@
 
   const gallery = document.querySelector("[data-gallery]");
   const filters = document.querySelector("[data-filters]");
+  const mobileFilters = document.querySelector("[data-mobile-filters]");
+  const filterContainers = [filters, mobileFilters].filter(Boolean);
+  const workToggle = document.querySelector("[data-work-toggle]");
   const lightbox = document.querySelector("[data-lightbox]");
   const lightboxMedia = document.querySelector("[data-lightbox-media]");
   const lightboxTitle = document.querySelector("[data-lightbox-title]");
   const lightboxMeta = document.querySelector("[data-lightbox-meta]");
-  const lightboxIndex = document.querySelector("[data-lightbox-index]");
+  const lightboxCaption = document.querySelector(".lightbox-caption");
   const lightboxCategory = document.querySelector("[data-lightbox-category]");
-  const menuToggle = document.querySelector(".menu-toggle");
-  const header = document.querySelector("[data-header]");
   const backToTop = document.querySelector("[data-back-to-top]");
+  const languageButtons = document.querySelectorAll("[data-language]");
+  const specializationWord = document.querySelector("[data-specialization-word]");
+  const specializationAccessible = document.querySelector("[data-specialization-accessible]");
+  const languageStorageKey = "vilbur-portfolio-language";
 
   let activeCategory = "all";
   let visibleProjects = [...data.projects];
   let activeProjectIndex = 0;
   let lastFocusedCard = null;
+  let activeLanguage = "en";
+  let specializationIndex = 0;
+  let specializationTimer;
+  let specializationTransitionTimer;
 
-  const projectMeta = (project) => [
-    project.subcategory === "overview" ? null : project.categoryLabel,
-    project.year,
-  ].filter(Boolean).join(" / ");
+  try {
+    const storedLanguage = window.localStorage.getItem(languageStorageKey);
+    if (storedLanguage === "en" || storedLanguage === "cs") {
+      activeLanguage = storedLanguage;
+    } else {
+      const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language];
+      activeLanguage = browserLanguages.some((language) => /^cs(?:-|$)/i.test(language ?? "")) ? "cs" : "en";
+    }
+  } catch {
+    const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language];
+    activeLanguage = browserLanguages.some((language) => /^cs(?:-|$)/i.test(language ?? "")) ? "cs" : "en";
+  }
+
+  const translationValue = (path) => path.split(".").reduce(
+    (value, key) => value?.[key],
+    data.site.translations?.[activeLanguage],
+  );
+  const translate = (path, replacements = {}) => {
+    const value = translationValue(path);
+    if (typeof value !== "string") return path;
+    return Object.entries(replacements).reduce(
+      (text, [key, replacement]) => text.replaceAll(`{${key}}`, replacement),
+      value,
+    );
+  };
+
+  const specializationWords = () => translationValue("hero.specializations") ?? ["models", "print", "visualizations"];
+  const showSpecialization = (index, animate = true) => {
+    const words = specializationWords();
+    specializationIndex = (index + words.length) % words.length;
+    window.clearTimeout(specializationTransitionTimer);
+
+    const updateWord = () => {
+      specializationWord.textContent = words[specializationIndex];
+      specializationWord.classList.remove("is-leaving");
+      if (!animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      specializationWord.classList.add("is-entering");
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => specializationWord.classList.remove("is-entering"));
+      });
+    };
+
+    if (!animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      updateWord();
+      return;
+    }
+
+    specializationWord.classList.add("is-leaving");
+    specializationTransitionTimer = window.setTimeout(updateWord, 180);
+  };
+
+  const stopSpecializationRotation = () => window.clearInterval(specializationTimer);
+  const startSpecializationRotation = () => {
+    stopSpecializationRotation();
+    specializationTimer = window.setInterval(() => showSpecialization(specializationIndex + 1), 2500);
+  };
+
   const toDomId = (value) =>
     String(value)
       .normalize("NFD")
@@ -137,7 +199,7 @@
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-  const makeFolderHeadingContent = (title, markdown, url, label) => {
+  const makeFolderHeadingContent = (title, url, label) => {
     const content = document.createElement("div");
     content.className = "gallery-heading-content";
     const titleRow = document.createElement("div");
@@ -152,22 +214,25 @@
       link.href = safeUrl;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.setAttribute("aria-label", `Open ${label} website in a new tab`);
-      link.textContent = "Visit ↗";
+      link.setAttribute("aria-label", translate("gallery.visitAria", { label }));
+      link.textContent = translate("gallery.visit");
       titleRow.append(link);
     }
     content.append(titleRow);
-
-    const description = renderMarkdown(markdown);
-    if (description) content.append(description);
     return content;
   };
 
   const fitMobileHeadings = () => {
     const isMobile = window.matchMedia("(max-width: 680px)").matches;
     document.querySelectorAll("[data-fit-single-line]").forEach((title) => {
+      const stickyHeading = title.closest(".gallery-group-heading");
+      const wasStuck = stickyHeading?.classList.contains("is-stuck");
+      if (wasStuck) stickyHeading.classList.remove("is-stuck");
       title.style.fontSize = "";
-      if (!isMobile) return;
+      if (!isMobile) {
+        title.style.removeProperty("--gallery-heading-font-size");
+        return;
+      }
 
       const row = title.closest(".gallery-heading-title-row");
       const link = row?.querySelector(".gallery-folder-link");
@@ -181,6 +246,11 @@
         fontSize = Math.max(minimumSize, fontSize - 0.5);
         title.style.fontSize = `${fontSize}px`;
       }
+
+      if (stickyHeading) {
+        title.style.setProperty("--gallery-heading-font-size", window.getComputedStyle(title).fontSize);
+        if (wasStuck) stickyHeading.classList.add("is-stuck");
+      }
     });
   };
 
@@ -189,28 +259,27 @@
   });
 
   const emailLink = document.querySelector("[data-contact-email]");
-  emailLink.textContent = data.site.email;
-  emailLink.href = `mailto:${data.site.email}`;
+  emailLink.querySelector("[data-contact-email-label]").textContent = data.site.email;
+  emailLink.href = data.site.emailHref;
+  const phoneLink = document.querySelector("[data-contact-phone]");
+  phoneLink.querySelector("[data-contact-phone-label]").textContent = data.site.phoneDisplay;
+  phoneLink.href = data.site.phoneHref;
   document.querySelector("[data-year]").textContent = new Date().getFullYear();
 
-  const makePlaceholder = (project, index, modifier = "") => {
+  const makePlaceholder = (project, modifier = "") => {
     const placeholder = document.createElement("div");
     placeholder.className = `render-placeholder render-placeholder--${project.tone} ${modifier}`.trim();
     placeholder.setAttribute("aria-hidden", "true");
 
-    const number = document.createElement("span");
-    number.className = "placeholder-index";
-    number.textContent = String(index + 1).padStart(2, "0");
-
     const message = document.createElement("span");
     message.className = "placeholder-message";
-    message.textContent = "Render slot";
+    message.textContent = translate("gallery.renderSlot");
 
-    placeholder.append(number, message);
+    placeholder.append(message);
     return placeholder;
   };
 
-  const makeProjectMedia = (project, index, modifier = "") => {
+  const makeProjectMedia = (project, modifier = "") => {
     const wrapper = document.createElement("div");
     wrapper.className = `project-media ${modifier}`.trim();
 
@@ -236,7 +305,7 @@
       video.addEventListener("loadeddata", requestPlayback, { once: true });
       video.addEventListener("canplay", requestPlayback, { once: true });
       video.addEventListener("error", () => {
-        wrapper.replaceChildren(makePlaceholder(project, index));
+        wrapper.replaceChildren(makePlaceholder(project, modifier));
       });
       wrapper.append(video);
       window.requestAnimationFrame(requestPlayback);
@@ -248,26 +317,56 @@
       image.decoding = "async";
       image.draggable = !modifier.includes("lightbox");
       image.addEventListener("error", () => {
-        wrapper.replaceChildren(makePlaceholder(project, index));
+        wrapper.replaceChildren(makePlaceholder(project, modifier));
       });
       wrapper.append(image);
     } else {
-      wrapper.append(makePlaceholder(project, index));
+      wrapper.append(makePlaceholder(project, modifier));
     }
 
     return wrapper;
   };
 
   const renderFilters = () => {
-    filters.replaceChildren();
-    data.categories.forEach((category) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "filter-button";
-      button.textContent = category.label;
-      button.dataset.category = category.id;
-      button.setAttribute("aria-pressed", String(category.id === activeCategory));
-      filters.append(button);
+    filterContainers.forEach((container) => {
+      container.replaceChildren();
+      data.categories.forEach((category) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "filter-button";
+        button.textContent = category.id === "all" ? translate("work.allWork") : category.label;
+        button.dataset.category = category.id;
+        button.setAttribute("aria-pressed", String(category.id === activeCategory));
+        container.append(button);
+      });
+    });
+  };
+
+  let stickyCategoryFrame;
+  const updateStickyCategoryHeadings = () => {
+    window.cancelAnimationFrame(stickyCategoryFrame);
+    stickyCategoryFrame = window.requestAnimationFrame(() => {
+      const isMobile = window.matchMedia("(max-width: 680px)").matches;
+      const stickyTop = Number.parseFloat(
+        window.getComputedStyle(document.documentElement).getPropertyValue("--header-height"),
+      ) || 0;
+
+      document.querySelectorAll(".gallery-group-heading").forEach((heading) => {
+        if (!isMobile) {
+          heading.classList.remove("is-stuck");
+          return;
+        }
+
+        const headingRect = heading.getBoundingClientRect();
+        const groupRect = heading.closest(".gallery-group")?.getBoundingClientRect();
+        const isStuck = Boolean(
+          groupRect
+          && groupRect.top < stickyTop
+          && headingRect.top <= stickyTop + 1
+          && groupRect.bottom > stickyTop + headingRect.height,
+        );
+        heading.classList.toggle("is-stuck", isStuck);
+      });
     });
   };
 
@@ -291,24 +390,22 @@
 
       const heading = document.createElement("header");
       heading.className = "gallery-group-heading";
-      const categoryNumber = data.categories.indexOf(category);
-      const worksLabel = categoryProjects.length === 1 ? "work" : "works";
-      const categoryIndex = document.createElement("span");
-      categoryIndex.textContent = String(categoryNumber).padStart(2, "0");
       const categoryTitle = document.createElement("h3");
       categoryTitle.id = categoryDomId;
       categoryTitle.textContent = category.label;
-      const categoryCount = document.createElement("span");
-      categoryCount.textContent = `${String(categoryProjects.length).padStart(2, "0")} ${worksLabel}`;
       const categoryContent = makeFolderHeadingContent(
         categoryTitle,
-        category.markdown,
         category.url,
         category.label,
       );
-      heading.append(categoryIndex, categoryContent, categoryCount);
+      heading.append(categoryContent);
 
       group.append(heading);
+      const categoryDescription = renderMarkdown(category.markdown);
+      if (categoryDescription) {
+        heading.classList.add("has-description");
+        group.append(categoryDescription);
+      }
 
       const subcategories = [...new Map(
         categoryProjects.map((project) => [project.subcategory, {
@@ -318,7 +415,7 @@
         }]),
       )];
 
-      subcategories.forEach(([subcategory, subcategoryDetails], subcategoryIndex) => {
+      subcategories.forEach(([subcategory, subcategoryDetails]) => {
         const subcategoryProjects = categoryProjects.filter(
           (project) => project.subcategory === subcategory,
         );
@@ -329,27 +426,21 @@
 
         const subheading = document.createElement("header");
         subheading.className = "gallery-subgroup-heading";
-        const subgroupIndex = document.createElement("span");
-        subgroupIndex.textContent = `${String(categoryNumber).padStart(2, "0")}.${String(subcategoryIndex + 1).padStart(2, "0")}`;
         const subgroupTitle = document.createElement("h4");
         subgroupTitle.id = subgroupId;
-        subgroupTitle.textContent = subcategoryDetails.label;
-        const subgroupCount = document.createElement("span");
-        subgroupCount.textContent = String(subcategoryProjects.length).padStart(2, "0");
+        subgroupTitle.textContent = subcategory === "overview" ? translate("work.overview") : subcategoryDetails.label;
         const subgroupContent = makeFolderHeadingContent(
           subgroupTitle,
-          subcategoryDetails.markdown,
           subcategoryDetails.url,
           subcategoryDetails.label,
         );
-        subheading.append(subgroupIndex, subgroupContent, subgroupCount);
+        subheading.append(subgroupContent);
 
         const grid = document.createElement("div");
         const preferredColumns = [1, 2, 3, 5, 6].includes(subcategoryProjects.length) ? 3 : 4;
         grid.className = `project-grid project-grid--cols-${preferredColumns}`;
 
         subcategoryProjects.forEach((project) => {
-          const sourceIndex = data.projects.indexOf(project);
           const visibleIndex = visibleProjects.indexOf(project);
           const card = document.createElement("article");
           card.className = `project-card project-card--${project.format}`;
@@ -357,43 +448,39 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "project-open";
-          button.setAttribute("aria-label", `Open ${project.title}`);
-          button.append(makeProjectMedia(project, sourceIndex));
+          button.setAttribute(
+            "aria-label",
+            project.title
+              ? translate("gallery.openProject", { label: project.title })
+              : translate(project.mediaType === "video" ? "gallery.openVideo" : "gallery.openImage"),
+          );
+          button.append(makeProjectMedia(project));
 
           const overlay = document.createElement("span");
           overlay.className = "project-overlay";
           overlay.setAttribute("aria-hidden", "true");
-          overlay.textContent = "View fullscreen ↗";
+          overlay.textContent = translate("gallery.viewFullscreen");
           button.append(overlay);
           button.addEventListener("click", () => openLightbox(visibleIndex, button));
 
-          const caption = document.createElement("div");
-          caption.className = "project-caption";
-          const captionTitleRow = document.createElement("div");
-          const captionIndex = document.createElement("span");
-          captionIndex.textContent = String(sourceIndex + 1).padStart(2, "0");
-          const captionTitle = document.createElement("h3");
-          captionTitle.textContent = project.title;
-          captionTitleRow.append(captionIndex, captionTitle);
-          caption.append(captionTitleRow);
-          const meta = projectMeta(project);
-          if (meta) {
-            const captionMeta = document.createElement("p");
-            captionMeta.textContent = meta;
-            caption.append(captionMeta);
-          }
-
-          card.append(button, caption);
+          card.append(button);
           grid.append(card);
         });
 
-        subgroup.append(subheading, grid);
+        subgroup.append(subheading);
+        const subcategoryDescription = renderMarkdown(subcategoryDetails.markdown);
+        if (subcategoryDescription) {
+          subheading.classList.add("has-description");
+          subgroup.append(subcategoryDescription);
+        }
+        subgroup.append(grid);
         group.append(subgroup);
       });
 
       gallery.append(group);
     });
     fitMobileHeadings();
+    updateStickyCategoryHeadings();
   };
 
   const preloadCache = new Map();
@@ -516,13 +603,12 @@
     resetZoom();
     resetSwipeOffset();
     const project = visibleProjects[activeProjectIndex];
-    const sourceIndex = data.projects.indexOf(project);
-    lightboxMedia.replaceChildren(makeProjectMedia(project, sourceIndex, "project-media--lightbox"));
-    lightboxTitle.textContent = project.title;
-    lightboxMeta.textContent = projectMeta(project);
+    lightboxMedia.replaceChildren(makeProjectMedia(project, "project-media--lightbox"));
+    lightboxTitle.textContent = project.title || "";
+    lightboxMeta.textContent = project.description || "";
+    lightboxCaption.hidden = !project.title && !project.description;
     lightboxCategory.textContent =
       data.categories.find((category) => category.id === project.category)?.label ?? project.category;
-    lightboxIndex.textContent = `${String(sourceIndex + 1).padStart(2, "0")} / ${String(data.projects.length).padStart(2, "0")}`;
     lightbox.dataset.activeIndex = String(activeProjectIndex);
     preloadLightboxNeighbors();
     const activeVideo = lightboxMedia.querySelector("video");
@@ -654,14 +740,99 @@
   lightboxMedia.addEventListener("pointercancel", (event) => finishLightboxGesture(event, true));
   lightboxMedia.addEventListener("dblclick", (event) => event.preventDefault());
 
-  filters.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-category]");
-    if (!button) return;
-    activeCategory = button.dataset.category;
-    filters.querySelectorAll("button").forEach((item) => {
-      item.setAttribute("aria-pressed", String(item === button));
+  const applyLanguage = (language, { persist = true, rerender = true } = {}) => {
+    activeLanguage = language === "cs" ? "cs" : "en";
+    document.documentElement.lang = activeLanguage === "cs" ? "cs" : "en";
+    document.title = translate("page.title");
+
+    document.querySelectorAll("[data-i18n]").forEach((element) => {
+      element.textContent = translate(element.dataset.i18n);
     });
-    renderGallery();
+    document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+      element.setAttribute("aria-label", translate(element.dataset.i18nAriaLabel));
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach((element) => {
+      element.alt = translate(element.dataset.i18nAlt);
+    });
+    document.querySelectorAll("[data-i18n-content]").forEach((element) => {
+      element.content = translate(element.dataset.i18nContent);
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+      element.title = translate(element.dataset.i18nTitle);
+    });
+
+    languageButtons.forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.language === activeLanguage));
+    });
+    specializationAccessible.textContent = translate("hero.specializationAccessible");
+    showSpecialization(0, false);
+    startSpecializationRotation();
+
+    if (persist) {
+      try {
+        window.localStorage.setItem(languageStorageKey, activeLanguage);
+      } catch {
+        // The language still changes when storage is unavailable.
+      }
+    }
+
+    if (rerender) {
+      renderFilters();
+      renderGallery();
+      if (lightbox.open) updateLightbox();
+      showHeroSlide(activeHeroIndex);
+    }
+  };
+
+  languageButtons.forEach((button) => {
+    button.addEventListener("click", () => applyLanguage(button.dataset.language));
+  });
+
+  const setWorkSubmenu = (open) => {
+    if (!workToggle || !mobileFilters) return;
+    workToggle.setAttribute("aria-expanded", String(open));
+    mobileFilters.hidden = !open;
+  };
+
+  workToggle?.addEventListener("click", () => {
+    setWorkSubmenu(workToggle.getAttribute("aria-expanded") !== "true");
+  });
+
+  filterContainers.forEach((container) => {
+    container.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-category]");
+      if (!button) return;
+      activeCategory = button.dataset.category;
+      filterContainers.forEach((filterContainer) => {
+        filterContainer.querySelectorAll("button").forEach((item) => {
+          item.setAttribute("aria-pressed", String(item.dataset.category === activeCategory));
+        });
+      });
+      renderGallery();
+
+      if (container === mobileFilters) {
+        setWorkSubmenu(false);
+        document.querySelector("#work")?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start",
+        });
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (workToggle?.getAttribute("aria-expanded") === "true" && !event.target.closest(".nav-work")) {
+      setWorkSubmenu(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setWorkSubmenu(false);
+  });
+  document.querySelectorAll('.site-nav a:not(.nav-work-link)').forEach((link) => {
+    link.addEventListener("click", () => setWorkSubmenu(false));
+  });
+  window.addEventListener("resize", () => {
+    if (!window.matchMedia("(max-width: 680px)").matches) setWorkSubmenu(false);
   });
 
   document.querySelector("[data-lightbox-close]").addEventListener("click", closeLightbox);
@@ -682,18 +853,6 @@
     document.body.classList.remove("is-locked");
   });
 
-  menuToggle.addEventListener("click", () => {
-    const isOpen = header.classList.toggle("nav-open");
-    menuToggle.setAttribute("aria-expanded", String(isOpen));
-  });
-
-  document.querySelectorAll(".site-nav a").forEach((link) => {
-    link.addEventListener("click", () => {
-      header.classList.remove("nav-open");
-      menuToggle.setAttribute("aria-expanded", "false");
-    });
-  });
-
   const updateBackToTop = () => {
     const isVisible = window.scrollY > Math.max(560, window.innerHeight * 0.7);
     backToTop.classList.toggle("is-visible", isVisible);
@@ -708,9 +867,11 @@
     });
   });
   window.addEventListener("scroll", updateBackToTop, { passive: true });
+  window.addEventListener("scroll", updateStickyCategoryHeadings, { passive: true });
   window.addEventListener("resize", updateBackToTop);
   window.addEventListener("resize", () => {
     fitMobileHeadings();
+    updateStickyCategoryHeadings();
     if (zoomState.scale > 1) applyZoom();
   });
   updateBackToTop();
@@ -724,15 +885,15 @@
   const heroSlides = headerImages.length
     ? headerImages.map((entry) => ({
         image: `${entry.path}?v=${entry.version}`,
-        title: entry.title,
-        alt: `${entry.title} — featured 3D render`,
-        meta: "Featured render / 3D CGI",
+        title: entry.title || null,
+        description: entry.description || null,
+        alt: entry.title || entry.description || "",
       }))
-    : [{ ...featured, meta: projectMeta(featured) }];
+    : [featured];
   const heroTitle = document.querySelector("[data-hero-title]");
   const heroMeta = document.querySelector("[data-hero-meta]");
+  const heroCaption = document.querySelector(".hero-caption");
   const heroControls = document.querySelector("[data-hero-controls]");
-  const heroPosition = document.querySelector("[data-hero-position]");
   const heroImages = [];
   let activeHeroIndex = 0;
   let heroTimer;
@@ -757,9 +918,9 @@
       image.setAttribute("aria-hidden", String(imageIndex !== activeHeroIndex));
     });
     const slide = heroSlides[activeHeroIndex];
-    heroTitle.textContent = slide.title;
-    heroMeta.textContent = slide.meta;
-    heroPosition.textContent = `${String(activeHeroIndex + 1).padStart(2, "0")} / ${String(heroSlides.length).padStart(2, "0")}`;
+    heroTitle.textContent = slide.title || "";
+    heroMeta.textContent = slide.description || "";
+    heroCaption.hidden = !slide.title && !slide.description;
   };
 
   const stopHeroCarousel = () => window.clearInterval(heroTimer);
@@ -782,9 +943,15 @@
   heroMedia.addEventListener("focusin", stopHeroCarousel);
   heroMedia.addEventListener("focusout", startHeroCarousel);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopHeroCarousel();
-    else startHeroCarousel();
+    if (document.hidden) {
+      stopHeroCarousel();
+      stopSpecializationRotation();
+    } else {
+      startHeroCarousel();
+      startSpecializationRotation();
+    }
   });
+  applyLanguage(activeLanguage, { persist: false, rerender: false });
   showHeroSlide(0);
   startHeroCarousel();
 

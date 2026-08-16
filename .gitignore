@@ -1,3 +1,4 @@
 .firebase/
+.deploy/
 firebase-debug.log
 tools/bin/

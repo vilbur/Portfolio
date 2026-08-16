@@ -2,16 +2,17 @@ $ErrorActionPreference = "Stop"
 
 $webRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $sourceRoot = Join-Path (Split-Path $webRoot -Parent) "Images"
+$aboutRoot = Join-Path (Split-Path $webRoot -Parent) "About"
 $headerRoot = Join-Path $webRoot "assets\header-carousel"
 $syncScript = Join-Path $PSScriptRoot "sync-content.ps1"
 
 function Get-ContentFingerprint {
-  $items = @($sourceRoot, $headerRoot) | ForEach-Object {
+  $items = @($sourceRoot, $aboutRoot, $headerRoot) | ForEach-Object {
     if (Test-Path -LiteralPath $_) {
       Get-ChildItem -LiteralPath $_ -File -Recurse -Force |
         Where-Object {
           $_.Extension -match "^\.(jpg|jpeg|png|gif|bmp|webp|avif|mp4|webm|url)$" -or
-          $_.Name -ieq "README.md"
+          $_.Name -ieq "content.md"
         }
     }
   } | Sort-Object FullName | ForEach-Object {

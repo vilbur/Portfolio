@@ -33,11 +33,11 @@ function Get-FolderMetadataRecords {
   $folders = Get-ChildItem -LiteralPath $rootFullPath -Directory -Recurse -Force | Sort-Object FullName
 
   return @($folders | ForEach-Object {
-    $readme = Get-ChildItem -LiteralPath $_.FullName -File -Force |
-      Where-Object Name -ieq "README.md" |
+    $contentFile = Get-ChildItem -LiteralPath $_.FullName -File -Force |
+      Where-Object Name -ieq "content.md" |
       Select-Object -First 1
-    $markdown = if ($readme) {
-      [System.IO.File]::ReadAllText($readme.FullName, [System.Text.Encoding]::UTF8).Trim()
+    $markdown = if ($contentFile) {
+      [System.IO.File]::ReadAllText($contentFile.FullName, [System.Text.Encoding]::UTF8).Trim()
     } else {
       $null
     }

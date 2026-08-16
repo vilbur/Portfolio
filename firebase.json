@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": ".",
+    "public": ".deploy",
     "ignore": [
       "firebase.json",
       ".firebaserc",
@@ -15,7 +15,7 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "predeploy": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/sync-content.ps1",
+    "predeploy": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/build-deploy.ps1",
     "headers": [
       {
         "source": "**/*.@(jpg|jpeg|png|gif|webp|avif|mp4|webm)",
@@ -27,7 +27,7 @@
         ]
       },
       {
-        "source": "**/*.@(html|js|css)",
+        "source": "**/*.@(html|js|css|xml|txt)",
         "headers": [
           {
             "key": "Cache-Control",

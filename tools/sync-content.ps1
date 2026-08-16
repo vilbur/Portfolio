@@ -7,6 +7,8 @@ $destinationRoot = Join-Path $webRoot "assets\library"
 $catalogPath = Join-Path $webRoot "scripts\image-catalog.js"
 $headerRoot = Join-Path $webRoot "assets\header-carousel"
 $headerCatalogPath = Join-Path $webRoot "scripts\header-carousel.js"
+$aboutSourceRoot = Join-Path $portfolioRoot "About"
+$aboutDestinationRoot = Join-Path $webRoot "assets\about"
 $indexPath = Join-Path $webRoot "index.html"
 $contentMetadataScript = Join-Path $PSScriptRoot "content-metadata.ps1"
 
@@ -20,6 +22,9 @@ if (-not (Test-Path -LiteralPath $sourceRoot)) {
 
 New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $headerRoot | Out-Null
+if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
+  New-Item -ItemType Directory -Force -Path $aboutDestinationRoot | Out-Null
+}
 Add-Type -AssemblyName System.Drawing
 $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
 . $contentMetadataScript
@@ -32,6 +37,21 @@ function Test-SupportedMedia {
 function Get-FileVersion {
   param([System.IO.FileInfo]$File)
   return ("{0:x}-{1:x}" -f $File.Length, $File.LastWriteTimeUtc.Ticks)
+}
+
+function Get-ShortFileHash {
+  param([string]$Path)
+
+  $hashAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+  $stream = [System.IO.File]::OpenRead($Path)
+  try {
+    $hashBytes = $hashAlgorithm.ComputeHash($stream)
+    $hash = ([System.BitConverter]::ToString($hashBytes)).Replace("-", "").ToLowerInvariant()
+    return $hash.Substring(0, 12)
+  } finally {
+    $stream.Dispose()
+    $hashAlgorithm.Dispose()
+  }
 }
 
 function Get-ImageFormat {
@@ -87,37 +107,49 @@ function Convert-MetadataBytesToText {
   }
 }
 
-function Get-ImageComment {
+function Get-ImageMetadata {
   param([string]$Path)
 
   $image = [System.Drawing.Image]::FromFile($Path)
   try {
-    $propertyPriority = @(40092, 37510, 632, 270, 40091, 269)
-    foreach ($propertyId in $propertyPriority) {
-      $property = $image.PropertyItems | Where-Object Id -eq $propertyId | Select-Object -First 1
-      if (-not $property) { continue }
+    function Get-MetadataValue {
+      param([int[]]$PropertyIds)
 
-      $encoding = if ($propertyId -in @(40091, 40092)) {
-        "Utf16"
-      } elseif ($propertyId -eq 37510) {
-        "UserComment"
-      } else {
-        "Utf8"
+      foreach ($propertyId in $PropertyIds) {
+        $property = $image.PropertyItems | Where-Object Id -eq $propertyId | Select-Object -First 1
+        if (-not $property) { continue }
+
+        $encoding = if ($propertyId -in @(40091, 40092, 40095)) {
+          "Utf16"
+        } elseif ($propertyId -eq 37510) {
+          "UserComment"
+        } else {
+          "Utf8"
+        }
+        $value = Convert-MetadataBytesToText -Bytes $property.Value -Encoding $encoding
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+
+        $value = ($value -replace "\s+", " ").Trim()
+        $placeholderValue = ($value.ToLowerInvariant() -replace "\s+", "")
+        if ($placeholderValue -match "^(preview|archive)([/|,;-](preview|archive))*$") { continue }
+
+        return $value
       }
-      $comment = Convert-MetadataBytesToText -Bytes $property.Value -Encoding $encoding
-      if ([string]::IsNullOrWhiteSpace($comment)) { continue }
 
-      $comment = ($comment -replace "\s+", " ").Trim()
-      $placeholderValue = ($comment.ToLowerInvariant() -replace "\s+", "")
-      if ($placeholderValue -match "^(preview|archive)([/|,;-](preview|archive))*$") { continue }
+      return $null
+    }
 
-      return $comment
+    $title = Get-MetadataValue -PropertyIds @(40091, 269)
+    $description = Get-MetadataValue -PropertyIds @(40092, 37510, 632, 270, 40095)
+    if ($title -and $description -and $title -eq $description) { $description = $null }
+
+    return [PSCustomObject]@{
+      Title = $title
+      Description = $description
     }
   } finally {
     $image.Dispose()
   }
-
-  return $null
 }
 
 function Convert-BitmapToJpeg {
@@ -182,10 +214,10 @@ $records = foreach ($sourceFile in $sourceFiles) {
   } else {
     Get-ImageFormat -Path $destination -Extension $webFile.Extension
   }
-  $comment = if ($sourceExtension -in @(".jpg", ".jpeg")) {
-    Get-ImageComment -Path $sourceFile.FullName
+  $imageMetadata = if ($sourceExtension -in @(".jpg", ".jpeg")) {
+    Get-ImageMetadata -Path $sourceFile.FullName
   } else {
-    $null
+    [PSCustomObject]@{ Title = $null; Description = $null }
   }
 
   [PSCustomObject]@{
@@ -193,7 +225,8 @@ $records = foreach ($sourceFile in $sourceFiles) {
     Format = $format
     Type = $mediaType
     Version = Get-FileVersion $webFile
-    Comment = $comment
+    Title = $imageMetadata.Title
+    Description = $imageMetadata.Description
   }
 }
 
@@ -211,12 +244,17 @@ Get-ChildItem -LiteralPath $destinationRoot -Directory -Recurse -Force |
 
 $catalogLines = foreach ($record in $records) {
   $safePath = $record.Path.Replace("\", "\\").Replace('"', '\"')
-  $commentValue = if ([string]::IsNullOrWhiteSpace($record.Comment)) {
+  $titleValue = if ([string]::IsNullOrWhiteSpace($record.Title)) {
     "null"
   } else {
-    ConvertTo-Json -InputObject $record.Comment -Compress
+    ConvertTo-Json -InputObject $record.Title -Compress
   }
-  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", comment: $commentValue },"
+  $descriptionValue = if ([string]::IsNullOrWhiteSpace($record.Description)) {
+    "null"
+  } else {
+    ConvertTo-Json -InputObject $record.Description -Compress
+  }
+  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue },"
 }
 
 $folderMetadataRecords = Get-FolderMetadataRecords -RootPath $sourceRoot
@@ -258,11 +296,23 @@ $headerFiles = Get-ChildItem -LiteralPath $headerRoot -File -Recurse -Force |
 $headerLines = foreach ($headerFile in $headerFiles) {
   $headerRelative = $headerFile.FullName.Substring($webRoot.Length + 1).Replace("\", "/")
   $safeHeaderPath = $headerRelative.Replace("\", "\\").Replace('"', '\"')
-  $headerTitle = [System.IO.Path]::GetFileNameWithoutExtension($headerFile.Name) -replace "[_-]+", " "
-  $headerTitle = (Get-Culture).TextInfo.ToTitleCase($headerTitle.ToLower())
-  $safeHeaderTitle = $headerTitle.Replace("\", "\\").Replace('"', '\"')
+  $headerMetadata = if ($headerFile.Extension.ToLowerInvariant() -in @(".jpg", ".jpeg")) {
+    Get-ImageMetadata -Path $headerFile.FullName
+  } else {
+    [PSCustomObject]@{ Title = $null; Description = $null }
+  }
+  $headerTitleValue = if ([string]::IsNullOrWhiteSpace($headerMetadata.Title)) {
+    "null"
+  } else {
+    ConvertTo-Json -InputObject $headerMetadata.Title -Compress
+  }
+  $headerDescriptionValue = if ([string]::IsNullOrWhiteSpace($headerMetadata.Description)) {
+    "null"
+  } else {
+    ConvertTo-Json -InputObject $headerMetadata.Description -Compress
+  }
   $version = Get-FileVersion $headerFile
-  "  { path: `"$safeHeaderPath`", title: `"$safeHeaderTitle`", version: `"$version`" },"
+  "  { path: `"$safeHeaderPath`", title: $headerTitleValue, description: $headerDescriptionValue, version: `"$version`" },"
 }
 
 $headerCatalogContent = @(
@@ -278,6 +328,40 @@ $headerCatalogContent = @(
   (New-Object System.Text.UTF8Encoding($false))
 )
 
+# About is authored next to Images. Keep its web copy current, while preserving
+# any unrelated working files already present in Web/assets/about.
+$aboutRecords = @()
+if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
+  $aboutRecords = @(Get-ChildItem -LiteralPath $aboutSourceRoot -File -Recurse -Force |
+    Where-Object { $imageExtensions -contains $_.Extension.ToLowerInvariant() } |
+    Sort-Object FullName |
+    ForEach-Object {
+      $aboutRelative = $_.FullName.Substring($aboutSourceRoot.Length + 1)
+      $aboutDestination = Join-Path $aboutDestinationRoot $aboutRelative
+      New-Item -ItemType Directory -Force -Path (Split-Path $aboutDestination -Parent) | Out-Null
+
+      $aboutDestinationExists = Test-Path -LiteralPath $aboutDestination
+      $aboutDestinationFile = if ($aboutDestinationExists) {
+        Get-Item -LiteralPath $aboutDestination
+      } else {
+        $null
+      }
+      if (
+        -not $aboutDestinationExists -or
+        $_.LastWriteTimeUtc -gt $aboutDestinationFile.LastWriteTimeUtc -or
+        $_.Length -ne $aboutDestinationFile.Length
+      ) {
+        Copy-Item -LiteralPath $_.FullName -Destination $aboutDestination -Force
+      }
+
+      $webAboutFile = Get-Item -LiteralPath $aboutDestination
+      [PSCustomObject]@{
+        Path = "assets/about/" + $aboutRelative.Replace("\", "/")
+        Version = Get-FileVersion $webAboutFile
+      }
+    })
+}
+
 # Give changed CSS/JavaScript a new URL so browsers never keep an old version.
 $versionedAssets = @(
   "styles/main.css",
@@ -289,12 +373,20 @@ $versionedAssets = @(
 $indexContent = [System.IO.File]::ReadAllText($indexPath)
 foreach ($relativeAsset in $versionedAssets) {
   $assetPath = Join-Path $webRoot $relativeAsset.Replace("/", "\")
-  $assetHash = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+  $assetHash = Get-ShortFileHash -Path $assetPath
   $escapedAsset = [regex]::Escape($relativeAsset)
   $indexContent = [regex]::Replace(
     $indexContent,
     "$escapedAsset(?:\?v=[^`"]+)?",
     "$relativeAsset`?v=$assetHash"
+  )
+}
+foreach ($aboutRecord in $aboutRecords) {
+  $escapedAboutPath = [regex]::Escape($aboutRecord.Path)
+  $indexContent = [regex]::Replace(
+    $indexContent,
+    "$escapedAboutPath(?:\?v=[^`"]+)?",
+    "$($aboutRecord.Path)`?v=$($aboutRecord.Version)"
   )
 }
 [System.IO.File]::WriteAllText(
@@ -305,4 +397,4 @@ foreach ($relativeAsset in $versionedAssets) {
 
 $imageCount = @($records | Where-Object Type -eq "image").Count
 $videoCount = @($records | Where-Object Type -eq "video").Count
-Write-Output "Content synchronized: $imageCount images, $videoCount videos, $($headerFiles.Count) header images."
+Write-Output "Content synchronized: $imageCount images, $videoCount videos, $($headerFiles.Count) header images, $($aboutRecords.Count) about images."
