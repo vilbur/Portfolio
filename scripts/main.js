@@ -421,6 +421,9 @@
   };
 
   const renderGallery = () => {
+    // Explicitly release media before replacing translated gallery markup.
+    // Detached video elements can otherwise keep the mobile decoder occupied.
+    suspendGalleryVideos();
     const visibleCategories = data.categories;
     visibleProjects = visibleCategories.flatMap((category) =>
       data.projects.filter((project) => project.category === category.id),
