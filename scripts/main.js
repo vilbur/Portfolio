@@ -370,6 +370,19 @@
     });
   };
 
+  const setActiveNavigationCategory = (categoryId) => {
+    activeNavigationCategory = categoryId;
+    filterContainers.forEach((container) => {
+      container.querySelectorAll("[data-category]").forEach((item) => {
+        if (item.dataset.category === activeNavigationCategory) {
+          item.setAttribute("aria-current", "location");
+        } else {
+          item.removeAttribute("aria-current");
+        }
+      });
+    });
+  };
+
   let stickyCategoryFrame;
   const setStickyHeadingTriggerState = (heading, enabled) => {
     const title = heading.querySelector(".gallery-heading-title-row > h3");
@@ -429,6 +442,7 @@
         heading.classList.toggle("is-stuck", isActive);
         setStickyHeadingTriggerState(heading, isActive);
       });
+      setActiveNavigationCategory(activeHeading?.closest(".gallery-group")?.dataset.category ?? null);
     });
   };
 
@@ -449,6 +463,7 @@
       const group = document.createElement("section");
       const categoryDomId = `gallery-group-${toDomId(category.id)}`;
       group.className = "gallery-group";
+      group.dataset.category = category.id;
       group.setAttribute("aria-labelledby", categoryDomId);
 
       const heading = document.createElement("header");
@@ -985,16 +1000,7 @@
       const link = event.target.closest("[data-category]");
       if (!link) return;
       event.preventDefault();
-      activeNavigationCategory = link.dataset.category;
-      filterContainers.forEach((filterContainer) => {
-        filterContainer.querySelectorAll("[data-category]").forEach((item) => {
-          if (item.dataset.category === activeNavigationCategory) {
-            item.setAttribute("aria-current", "location");
-          } else {
-            item.removeAttribute("aria-current");
-          }
-        });
-      });
+      setActiveNavigationCategory(link.dataset.category);
       setWorkSubmenu(false);
 
       const target = document.getElementById(`gallery-group-${toDomId(activeNavigationCategory)}`)

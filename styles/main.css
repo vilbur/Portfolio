@@ -650,10 +650,14 @@ img {
 }
 
 .filter-button:hover,
-.filter-button:focus-visible,
-.filter-button[aria-current="location"] {
+.filter-button:focus-visible {
   border-color: var(--accent);
   color: var(--paper);
+}
+
+.filter-button[aria-current="location"] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .gallery {
@@ -1762,6 +1766,7 @@ img {
   }
 
   .gallery-group-heading.is-stuck h3 {
+    color: var(--accent);
     font-size: 0.75rem !important;
   }
 
