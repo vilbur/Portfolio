@@ -1368,6 +1368,11 @@ img {
   user-select: none;
 }
 
+.lightbox-media.has-video {
+  touch-action: manipulation;
+  user-select: auto;
+}
+
 .project-media--lightbox {
   display: flex;
   width: 100%;
@@ -1392,6 +1397,10 @@ img {
   user-select: none;
   will-change: transform;
   transition: transform 220ms var(--ease);
+}
+
+.project-media--lightbox video {
+  touch-action: manipulation;
 }
 
 .lightbox-media.is-zoomed .project-media--lightbox img {

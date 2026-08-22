@@ -292,6 +292,11 @@
     return placeholder;
   };
 
+  const requestVideoPlayback = (video) => {
+    const playRequest = video?.play();
+    if (playRequest) playRequest.catch(() => {});
+  };
+
   const makeProjectMedia = (project, modifier = "") => {
     const wrapper = document.createElement("div");
     wrapper.className = `project-media ${modifier}`.trim();
@@ -301,26 +306,33 @@
 
     if (project.image && project.mediaType === "video") {
       const video = document.createElement("video");
-      video.src = project.image;
+      const isLightboxVideo = modifier.includes("lightbox");
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
-      video.preload = modifier.includes("lightbox") ? "auto" : "metadata";
+      video.preload = isLightboxVideo ? "auto" : "metadata";
       video.autoplay = true;
-      video.controls = modifier.includes("lightbox");
+      video.controls = isLightboxVideo;
       video.setAttribute("muted", "");
       video.setAttribute("playsinline", "");
       video.setAttribute("webkit-playsinline", "");
       video.setAttribute("autoplay", "");
       video.setAttribute("loop", "");
       video.setAttribute("aria-label", project.alt);
+      if (!isLightboxVideo && lightbox.open) {
+        video.dataset.suspendedSrc = project.image;
+      } else {
+        video.src = project.image;
+      }
       const requestPlayback = () => {
-        const playRequest = video.play();
-        if (playRequest) playRequest.catch(() => {});
+        if (!video.hasAttribute("src")) return;
+        if (isLightboxVideo ? !lightbox.open : lightbox.open) return;
+        requestVideoPlayback(video);
       };
       video.addEventListener("loadeddata", requestPlayback, { once: true });
       video.addEventListener("canplay", requestPlayback, { once: true });
       video.addEventListener("error", () => {
+        if (!video.hasAttribute("src")) return;
         wrapper.replaceChildren(makePlaceholder(project, modifier));
       });
       wrapper.append(video);
@@ -650,14 +662,42 @@
     wrapper.style.opacity = "";
   };
 
+  const suspendGalleryVideos = () => {
+    gallery.querySelectorAll("video").forEach((video) => {
+      const source = video.getAttribute("src");
+      if (source && !video.dataset.suspendedSrc) video.dataset.suspendedSrc = source;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    });
+  };
+
+  const resumeGalleryVideos = () => {
+    gallery.querySelectorAll("video").forEach((video) => {
+      const source = video.dataset.suspendedSrc;
+      if (source && !video.hasAttribute("src")) {
+        video.src = source;
+        delete video.dataset.suspendedSrc;
+        video.load();
+      }
+      requestVideoPlayback(video);
+    });
+  };
+
+  const releaseLightboxVideo = () => {
+    const video = lightboxMedia.querySelector("video");
+    if (!video) return;
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  };
+
   const preloadProject = (project) => {
     if (!project?.image || preloadCache.has(project.image)) return;
     if (project.mediaType === "video") {
-      const video = document.createElement("video");
-      video.preload = "auto";
-      video.muted = true;
-      video.src = project.image;
-      preloadCache.set(project.image, video);
+      // Video thumbnails already hold their metadata. Creating another hidden
+      // video here can exhaust the small decoder pool on mobile devices.
+      preloadCache.set(project.image, true);
       return;
     }
 
@@ -685,9 +725,12 @@
   };
 
   const updateLightbox = () => {
+    if (lightbox.open) suspendGalleryVideos();
+    releaseLightboxVideo();
     resetZoom();
     resetSwipeOffset();
     const project = visibleProjects[activeProjectIndex];
+    lightboxMedia.classList.toggle("has-video", project.mediaType === "video");
     lightboxMedia.replaceChildren(makeProjectMedia(project, "project-media--lightbox"));
     lightboxTitle.textContent = project.title || "";
     lightboxMeta.textContent = project.description || "";
@@ -699,8 +742,7 @@
     const activeVideo = lightboxMedia.querySelector("video");
     if (activeVideo) {
       window.requestAnimationFrame(() => {
-        const playRequest = activeVideo.play();
-        if (playRequest) playRequest.catch(() => {});
+        if (lightbox.open && activeVideo.isConnected) requestVideoPlayback(activeVideo);
       });
     }
   };
@@ -708,6 +750,7 @@
   const openLightbox = (index, trigger, activationEvent = null) => {
     activeProjectIndex = index;
     lastFocusedCard = trigger;
+    suspendGalleryVideos();
     updateLightbox();
     lightbox.showModal();
     document.body.classList.add("is-locked");
@@ -721,13 +764,11 @@
       };
     }
     const activeVideo = lightboxMedia.querySelector("video");
-    if (activeVideo) {
-      const playRequest = activeVideo.play();
-      if (playRequest) playRequest.catch(() => {});
-    }
+    if (activeVideo) requestVideoPlayback(activeVideo);
   };
 
   const closeLightbox = () => {
+    releaseLightboxVideo();
     resetZoom();
     exitLightboxFullscreen();
     lightbox.close();
@@ -792,6 +833,7 @@
   lightboxMedia.addEventListener("pointerdown", (event) => {
     if (!lightbox.open || gestureState.pointerId !== null) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (event.target.closest("video")) return;
 
     gestureState.pointerId = event.pointerId;
     gestureState.mode = zoomState.scale > 1 ? "pan" : "swipe";
@@ -990,9 +1032,11 @@
   });
 
   lightbox.addEventListener("close", () => {
+    releaseLightboxVideo();
     resetZoom();
     exitLightboxFullscreen();
     document.body.classList.remove("is-locked");
+    resumeGalleryVideos();
   });
 
   const updateBackToTop = () => {
