@@ -83,21 +83,18 @@
 
   const sortedCatalog = [...catalog].sort(compareCatalogPaths);
   const metadataFor = (path) => ({
-    markdown: folderMetadata[path]?.markdown?.trim() || null,
+    markdown: folderMetadata[path]?.markdown || null,
     url: folderMetadata[path]?.url || null,
   });
 
   const categoryIds = [...new Set(
     sortedCatalog.map((entry) => entry.path.replace("assets/library/", "").split("/")[0]),
   )];
-  const categories = [
-    { id: "all", label: "All work" },
-    ...categoryIds.map((id) => ({
-      id,
-      label: folderLabel(id),
-      ...metadataFor(id),
-    })),
-  ];
+  const categories = categoryIds.map((id) => ({
+    id,
+    label: folderLabel(id),
+    ...metadataFor(id),
+  }));
   const tonePalette = ["ember", "steel", "blue", "graphite"];
 
   const projects = sortedCatalog.map((entry) => {
@@ -125,6 +122,7 @@
       sourcePath: entry.path,
       image: `${entry.path}?v=${entry.version}`,
       mediaType: entry.type ?? "image",
+      thumbnail: entry.thumbnail ?? "cover",
       alt: title || description || "",
       format: entry.format,
       tone: tonePalette[categoryIds.indexOf(category) % tonePalette.length],
@@ -166,8 +164,7 @@
           },
           work: {
             galleryAria: "Portfolio",
-            filtersAria: "Filter projects by category",
-            allWork: "All work",
+            filtersAria: "Portfolio categories",
             singular: "work",
             plural: "works",
             overview: "Overview",
@@ -189,6 +186,7 @@
               execution: "Clean geometry, realistic materials and careful execution",
             },
             photoAlt: "Portrait of Lubor Černý",
+            resume: "Download resume",
             selectedProjects: "Participation in projects",
             pcGames: "PC Games",
             cartoonMovies: "Cartoon Movies",
@@ -242,8 +240,7 @@
           },
           work: {
             galleryAria: "Portfolio",
-            filtersAria: "Filtrovat projekty podle kategorie",
-            allWork: "Všechny práce",
+            filtersAria: "Kategorie portfolia",
             singular: "práce",
             plural: "prací",
             overview: "Přehled",
@@ -265,6 +262,7 @@
               execution: "Čistá geometrie, realistické materiály a pečlivé zpracování",
             },
             photoAlt: "Portrét Lubora Černého",
+            resume: "Stáhnout životopis",
             selectedProjects: "Účast na projektech",
             pcGames: "PC hry",
             cartoonMovies: "Animované filmy",

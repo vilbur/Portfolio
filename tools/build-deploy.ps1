@@ -8,6 +8,7 @@ $expectedStagingRoot = [System.IO.Path]::GetFullPath((Join-Path $webRoot ".deplo
 $syncScript = Join-Path $PSScriptRoot "sync-content.ps1"
 $metadataTest = Join-Path $PSScriptRoot "test-content-metadata.ps1"
 $imageExtensions = @(".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif")
+$aboutAssetExtensions = $imageExtensions + @(".docx")
 
 if (-not $stagingRoot.Equals($expectedStagingRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
   throw "Deployment staging path is not the expected Web/.deploy folder."
@@ -40,10 +41,10 @@ Copy-ReleaseItem "scripts"
 Copy-ReleaseItem "assets\library"
 Copy-ReleaseItem "assets\header-carousel"
 
-# About is a source folder outside Web. Only browser-ready images are released.
+# About is a source folder outside Web. Release its browser assets and resumes.
 if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
   Get-ChildItem -LiteralPath $aboutSourceRoot -File -Recurse -Force |
-    Where-Object { $imageExtensions -contains $_.Extension.ToLowerInvariant() } |
+    Where-Object { $aboutAssetExtensions -contains $_.Extension.ToLowerInvariant() } |
     ForEach-Object {
       $relativePath = $_.FullName.Substring($aboutSourceRoot.Length + 1)
       $destination = Join-Path $stagingRoot (Join-Path "assets\about" $relativePath)

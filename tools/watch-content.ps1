@@ -12,7 +12,7 @@ function Get-ContentFingerprint {
       Get-ChildItem -LiteralPath $_ -File -Recurse -Force |
         Where-Object {
           $_.Extension -match "^\.(jpg|jpeg|png|gif|bmp|webp|avif|mp4|webm|url)$" -or
-          $_.Name -ieq "content.md"
+          $_.Name -imatch '^content(?:\.(?:en|cs|cz))?\.md$'
         }
     }
   } | Sort-Object FullName | ForEach-Object {

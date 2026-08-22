@@ -15,6 +15,7 @@ $contentMetadataScript = Join-Path $PSScriptRoot "content-metadata.ps1"
 $imageExtensions = @(".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".avif")
 $videoExtensions = @(".mp4", ".webm")
 $mediaExtensions = $imageExtensions + $videoExtensions
+$aboutAssetExtensions = $imageExtensions + @(".docx")
 
 if (-not (Test-Path -LiteralPath $sourceRoot)) {
   throw "Source media folder was not found: $sourceRoot"
@@ -36,7 +37,7 @@ function Test-SupportedMedia {
 
 function Get-FileVersion {
   param([System.IO.FileInfo]$File)
-  return ("{0:x}-{1:x}" -f $File.Length, $File.LastWriteTimeUtc.Ticks)
+  return Get-ShortFileHash -Path $File.FullName
 }
 
 function Get-ShortFileHash {
@@ -141,11 +142,16 @@ function Get-ImageMetadata {
 
     $title = Get-MetadataValue -PropertyIds @(40091, 269)
     $description = Get-MetadataValue -PropertyIds @(40092, 37510, 632, 270, 40095)
+    $specialInstructions = Get-MetadataValue -PropertyIds @(552)
+    if ([string]::IsNullOrWhiteSpace($specialInstructions)) {
+      $specialInstructions = Get-IptcDatasetText -Path $Path -Record 2 -Dataset 40
+    }
     if ($title -and $description -and $title -eq $description) { $description = $null }
 
     return [PSCustomObject]@{
       Title = $title
       Description = $description
+      Thumbnail = Get-ThumbnailInstruction -SpecialInstructions $specialInstructions
     }
   } finally {
     $image.Dispose()
@@ -197,9 +203,14 @@ $records = foreach ($sourceFile in $sourceFiles) {
 
   $destinationExists = Test-Path -LiteralPath $destination
   $destinationFile = if ($destinationExists) { Get-Item -LiteralPath $destination } else { $null }
-  $needsUpdate = -not $destinationExists -or
-    $sourceFile.LastWriteTimeUtc -gt $destinationFile.LastWriteTimeUtc -or
-    ($sourceExtension -ne ".bmp" -and $sourceFile.Length -ne $destinationFile.Length)
+  $needsUpdate = if (-not $destinationExists) {
+    $true
+  } elseif ($sourceExtension -eq ".bmp") {
+    $sourceFile.LastWriteTimeUtc -gt $destinationFile.LastWriteTimeUtc
+  } else {
+    (Get-ShortFileHash -Path $sourceFile.FullName) -ne
+      (Get-ShortFileHash -Path $destinationFile.FullName)
+  }
 
   if ($needsUpdate -and $sourceExtension -eq ".bmp") {
     Convert-BitmapToJpeg -Source $sourceFile.FullName -Destination $destination
@@ -217,7 +228,7 @@ $records = foreach ($sourceFile in $sourceFiles) {
   $imageMetadata = if ($sourceExtension -in @(".jpg", ".jpeg")) {
     Get-ImageMetadata -Path $sourceFile.FullName
   } else {
-    [PSCustomObject]@{ Title = $null; Description = $null }
+    [PSCustomObject]@{ Title = $null; Description = $null; Thumbnail = "cover" }
   }
 
   [PSCustomObject]@{
@@ -227,6 +238,7 @@ $records = foreach ($sourceFile in $sourceFiles) {
     Version = Get-FileVersion $webFile
     Title = $imageMetadata.Title
     Description = $imageMetadata.Description
+    Thumbnail = $imageMetadata.Thumbnail
   }
 }
 
@@ -254,17 +266,14 @@ $catalogLines = foreach ($record in $records) {
   } else {
     ConvertTo-Json -InputObject $record.Description -Compress
   }
-  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue },"
+  $thumbnailValue = ConvertTo-Json -InputObject $record.Thumbnail -Compress
+  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue, thumbnail: $thumbnailValue },"
 }
 
 $folderMetadataRecords = Get-FolderMetadataRecords -RootPath $sourceRoot
 $folderMetadataLines = foreach ($record in $folderMetadataRecords) {
   $pathValue = ConvertTo-Json -InputObject $record.Path -Compress
-  $markdownValue = if ([string]::IsNullOrWhiteSpace($record.Markdown)) {
-    "null"
-  } else {
-    ConvertTo-Json -InputObject $record.Markdown -Compress
-  }
+  $markdownValue = ConvertTo-Json -InputObject $record.Markdown -Compress
   $urlValue = if ([string]::IsNullOrWhiteSpace($record.Url)) {
     "null"
   } else {
@@ -333,7 +342,7 @@ $headerCatalogContent = @(
 $aboutRecords = @()
 if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
   $aboutRecords = @(Get-ChildItem -LiteralPath $aboutSourceRoot -File -Recurse -Force |
-    Where-Object { $imageExtensions -contains $_.Extension.ToLowerInvariant() } |
+      Where-Object { $aboutAssetExtensions -contains $_.Extension.ToLowerInvariant() } |
     Sort-Object FullName |
     ForEach-Object {
       $aboutRelative = $_.FullName.Substring($aboutSourceRoot.Length + 1)
@@ -348,8 +357,8 @@ if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
       }
       if (
         -not $aboutDestinationExists -or
-        $_.LastWriteTimeUtc -gt $aboutDestinationFile.LastWriteTimeUtc -or
-        $_.Length -ne $aboutDestinationFile.Length
+        (Get-ShortFileHash -Path $_.FullName) -ne
+          (Get-ShortFileHash -Path $aboutDestinationFile.FullName)
       ) {
         Copy-Item -LiteralPath $_.FullName -Destination $aboutDestination -Force
       }
@@ -397,4 +406,4 @@ foreach ($aboutRecord in $aboutRecords) {
 
 $imageCount = @($records | Where-Object Type -eq "image").Count
 $videoCount = @($records | Where-Object Type -eq "video").Count
-Write-Output "Content synchronized: $imageCount images, $videoCount videos, $($headerFiles.Count) header images, $($aboutRecords.Count) about images."
+Write-Output "Content synchronized: $imageCount images, $videoCount videos, $($headerFiles.Count) header images, $($aboutRecords.Count) about files."

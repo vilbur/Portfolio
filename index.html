@@ -17,11 +17,11 @@
     <meta property="og:url" content="https://vilbur-3d-portfolio.web.app/" />
     <meta property="og:image" content="https://vilbur-3d-portfolio.web.app/assets/header-carousel/Maserati-Ghibli-detail.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="styles/main.css?v=86fc250daab7" />
-    <script src="scripts/image-catalog.js?v=f43f3434d072" defer></script>
-    <script src="scripts/header-carousel.js?v=2e55bdec8533" defer></script>
-    <script src="scripts/projects.js?v=c8951c5b2f10" defer></script>
-    <script src="scripts/main.js?v=ca71faad57cc" defer></script>
+    <link rel="stylesheet" href="styles/main.css?v=b28e1d48a281" />
+    <script src="scripts/image-catalog.js?v=f32a9969fe87" defer></script>
+    <script src="scripts/header-carousel.js?v=1834cef59171" defer></script>
+    <script src="scripts/projects.js?v=306ebf4bec30" defer></script>
+    <script src="scripts/main.js?v=1c5db46f47c2" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#work" data-i18n="skipLink">Skip to portfolio</a>
@@ -60,7 +60,7 @@
               class="work-submenu"
               id="work-submenu"
               data-mobile-filters
-              aria-label="Filter projects by category"
+              aria-label="Portfolio categories"
               data-i18n-aria-label="work.filtersAria"
               hidden
             ></div>
@@ -136,8 +136,24 @@
             <span data-hero-meta></span>
           </div>
           <div class="hero-carousel-controls" data-hero-controls hidden>
-            <button type="button" data-hero-prev aria-label="Previous featured render" data-i18n-aria-label="hero.previousRender">←</button>
-            <button type="button" data-hero-next aria-label="Next featured render" data-i18n-aria-label="hero.nextRender">→</button>
+            <button
+              class="hero-carousel-arrow hero-carousel-arrow--prev"
+              type="button"
+              data-hero-prev
+              aria-label="Previous featured render"
+              data-i18n-aria-label="hero.previousRender"
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+            <button
+              class="hero-carousel-arrow hero-carousel-arrow--next"
+              type="button"
+              data-hero-next
+              aria-label="Next featured render"
+              data-i18n-aria-label="hero.nextRender"
+            >
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
 
@@ -145,7 +161,7 @@
       </section>
 
       <section class="work section-shell" id="work" aria-label="Portfolio" data-i18n-aria-label="work.galleryAria">
-        <div class="filters" data-filters aria-label="Filter projects by category" data-i18n-aria-label="work.filtersAria"></div>
+        <nav class="filters" data-filters aria-label="Portfolio categories" data-i18n-aria-label="work.filtersAria"></nav>
         <div class="gallery" data-gallery aria-live="polite"></div>
       </section>
 
@@ -162,7 +178,7 @@
         <div class="about-profile">
           <figure class="profile-photo">
             <img
-              src="assets/about/photo.png?v=55bb-8defb6e19fbeca9"
+              src="assets/about/photo.png?v=9c234c72015d"
               width="1130"
               height="1546"
               loading="lazy"
@@ -187,6 +203,15 @@
                 <dd data-i18n="about.englishB2">English – B2</dd>
               </div>
             </dl>
+            <a
+              class="about-resume"
+              href="assets/about/Lubor Černý - Resume EN.docx?v=16bce1d822b2"
+              download="Lubor Černý - Resume EN.docx"
+              data-resume-download
+            >
+              <svg class="contact-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.2l3.6-3.6 1.4 1.4-6 6-6-6 1.4-1.4 3.6 3.6V3ZM4 19h16v2H4v-2Z"/></svg>
+              <span data-i18n="about.resume">Download resume</span>
+            </a>
           </div>
         </div>
       </section>
@@ -203,11 +228,6 @@
             <li data-i18n="about.points.print">Models and assets for 3D printing</li>
             <li data-i18n="about.points.execution">Clean geometry, realistic materials and careful execution</li>
           </ul>
-
-          <a class="about-github" href="https://github.com/vilbur" target="_blank" rel="noopener noreferrer">
-            <svg class="contact-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 0 1.6 1.1 1.6 1.1.9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.3-2.3-.3-4.6-1.1-4.6-4.7 0-1 .4-1.9 1-2.6-.1-.3-.4-1.3.1-2.6 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.2 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.6.6.7 1 1.6 1 2.6 0 3.7-2.3 4.5-4.6 4.7.4.3.7 1 .7 1.9v2.9c0 .3.2.6.7.5a9.5 9.5 0 0 0-3-18.5Z"/></svg>
-            <span>GitHub / vilbur</span>
-          </a>
 
           <div class="selected-projects" aria-labelledby="selected-projects-title">
             <p class="selected-projects-title" id="selected-projects-title" data-i18n="about.selectedProjects">

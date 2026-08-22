@@ -44,7 +44,7 @@ function Assert-GeneratedSite {
       throw "The generated folder metadata does not contain the '$folderField' field."
     }
   }
-  foreach ($catalogField in @("format", "type", "version", "title", "description")) {
+  foreach ($catalogField in @("format", "type", "version", "title", "description", "thumbnail")) {
     if ($catalogContent -notmatch ("\b" + [regex]::Escape($catalogField) + "\s*:")) {
       throw "The generated catalog does not contain the '$catalogField' field required by the new website."
     }
@@ -167,24 +167,108 @@ function Invoke-FirebaseCli {
   param([string[]]$Arguments)
 
   if ($script:firebaseMode -eq "direct") {
-    & $script:firebaseCommand @Arguments
-    $script:firebaseLastExitCode = $LASTEXITCODE
+    $previousErrorAction = $ErrorActionPreference
+    try {
+      # Windows PowerShell wraps native stderr as error records. Firebase and
+      # package tools also use stderr for harmless progress messages.
+      $ErrorActionPreference = "Continue"
+      & $script:firebaseCommand @Arguments
+      $script:firebaseLastExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorAction
+    }
     return
   }
 
   if ($script:firebaseMode -eq "pnpm") {
     $previousPath = $env:Path
+    $previousErrorAction = $ErrorActionPreference
     try {
       $env:Path = $script:firebaseNodeBin + ";" + $previousPath
+      $ErrorActionPreference = "Continue"
       & $script:firebaseCommand dlx firebase-tools @Arguments
       $script:firebaseLastExitCode = $LASTEXITCODE
     } finally {
       $env:Path = $previousPath
+      $ErrorActionPreference = $previousErrorAction
     }
     return
   }
 
   throw "Firebase publishing runtime was not initialized."
+}
+
+function Get-FileSha256 {
+  param([string]$Path)
+
+  $hashAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+  $stream = [System.IO.File]::OpenRead($Path)
+  try {
+    return ([System.BitConverter]::ToString($hashAlgorithm.ComputeHash($stream))).Replace("-", "")
+  } finally {
+    $stream.Dispose()
+    $hashAlgorithm.Dispose()
+  }
+}
+
+function Assert-LiveSiteMatchesRelease {
+  param(
+    [string]$Url,
+    [string]$ExpectedSiteRoot
+  )
+
+  $verificationFiles = @(
+    [PSCustomObject]@{ RelativePath = "index.html"; LivePath = ""; CheckCache = $true },
+    [PSCustomObject]@{ RelativePath = "scripts\image-catalog.js"; LivePath = "scripts/image-catalog.js"; CheckCache = $false },
+    [PSCustomObject]@{ RelativePath = "scripts\header-carousel.js"; LivePath = "scripts/header-carousel.js"; CheckCache = $false }
+  )
+  $downloadPath = Join-Path ([System.IO.Path]::GetTempPath()) (
+    "portfolio-live-file-" + [guid]::NewGuid().ToString("N")
+  )
+  try {
+    for ($attempt = 1; $attempt -le 5; $attempt += 1) {
+      $allFilesMatch = $true
+      foreach ($verificationFile in $verificationFiles) {
+        $expectedPath = Join-Path $ExpectedSiteRoot $verificationFile.RelativePath
+        $expectedHash = Get-FileSha256 -Path $expectedPath
+        $liveBaseUrl = $Url.TrimEnd("/") + "/" + $verificationFile.LivePath
+        $separator = if ($liveBaseUrl.Contains("?")) { "&" } else { "?" }
+        $verificationUrl = $liveBaseUrl + $separator + "deploy_verify=" +
+          [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $response = Invoke-WebRequest `
+          -Uri $verificationUrl `
+          -OutFile $downloadPath `
+          -PassThru `
+          -UseBasicParsing `
+          -Headers @{ "Cache-Control" = "no-cache" }
+        $liveHash = Get-FileSha256 -Path $downloadPath
+
+        if ($liveHash -ne $expectedHash) {
+          $allFilesMatch = $false
+          break
+        }
+        if ($verificationFile.CheckCache) {
+          $cacheControl = [string]$response.Headers["Cache-Control"]
+          if ($cacheControl -notmatch "(?i)(no-cache|no-store|max-age=0)") {
+            throw "Live HTML is current, but its cache policy can still keep an old page: $cacheControl"
+          }
+        }
+      }
+
+      if ($allFilesMatch) {
+        Write-Output "Live website verified: HTML, asset catalogs and cache policy are current."
+        return
+      }
+
+      if ($attempt -lt 5) { Start-Sleep -Seconds 2 }
+    }
+  } finally {
+    if (Test-Path -LiteralPath $downloadPath) {
+      Remove-Item -LiteralPath $downloadPath -Force
+    }
+  }
+
+  throw "Firebase reported success, but the live HTML or asset catalogs do not match the deployment package."
 }
 
 Write-Output "Preparing portfolio content..."
@@ -195,6 +279,15 @@ Write-Output "Website check passed: $mediaCount media files are ready."
 $hostingConfig = Get-Content -Raw -LiteralPath $firebaseHostingConfigPath | ConvertFrom-Json
 if ($hostingConfig.hosting.public -ne ".deploy") {
   throw "Firebase must publish only the clean .deploy package."
+}
+$defaultCacheRule = $hostingConfig.hosting.headers |
+  Where-Object source -eq "**" |
+  Select-Object -First 1
+$defaultCacheControl = $defaultCacheRule.headers |
+  Where-Object key -eq "Cache-Control" |
+  Select-Object -First 1
+if ($defaultCacheControl.value -notmatch "(?i)(no-cache|no-store|max-age=0)") {
+  throw "Firebase must disable stale caching for the root HTML page."
 }
 
 if ($CheckOnly) {
@@ -237,6 +330,7 @@ try {
 }
 
 $hostingUrl = "https://$projectId.web.app"
+Assert-LiveSiteMatchesRelease -Url $hostingUrl -ExpectedSiteRoot $stagingRoot
 Write-Output "Published successfully: $hostingUrl"
 if (-not $NoBrowser) {
   Start-Process $hostingUrl

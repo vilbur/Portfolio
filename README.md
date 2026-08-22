@@ -18,6 +18,7 @@ Publikacni akce sama:
 - pred odeslanim zkontroluje, ze zadny soubor nechybi,
 - spusti test popisu a odkazu slozek,
 - sestavi cisty publikacni balicek bez testu, zaloh a pracovnich souboru,
+- po publikaci porovna hash ziveho HTML i obou katalogu assetu s odeslanymi soubory a overi pravidla cache,
 - publikuje pouze Firebase Hosting.
 
 Pri prvnim pouziti se otevre jednorazove prihlaseni ke Google uctu. Deployer pouzije bezny Firebase nastroj, pokud je nainstalovany, nebo lokalni behove prostredi dodane s Codexem. Samotna publikace AI nepouziva. Dalsi publikace jsou jeden dvojklik.
@@ -34,13 +35,19 @@ Priklad:
 
 Viditelny titulek a popis obrazku se nacitaji vyhradne z vlozenych JPG metadata. Pole Title/Document Name se pouzije jako titulek a Comment/User Comment/Image Description jako popis. Metadata obrazku se zobrazuji pouze po otevreni obrazku v detailu; pod nahledy na hlavni strance nejsou zadne popisky. Pokud metadata chybi, nezobrazi se zadny titulek ani popis.
 
+Vzhled konkretniho JPG nahledu lze zmenit v poli IPTC Special Instructions. `thumbnail=contain` zobrazi cely obrazek bez orezu, zatimco vychozi `cover` nahled vyplni a muze jej oriznout. Podporovane jsou take `thumbnail=top`, `thumbnail=center` a `thumbnail=bottom`; vsechny pouzivaji `cover` a meni svisle zarovnani. Nezname instrukce se ignoruji a dalsi hodnoty mohou byt ve stejnem poli oddelene mezerou, carkou nebo strednikem.
+
 Razeni je abecedni. Pro pevne poradi pouzij prefixy `01-`, `02-`, `03-`.
 
 Podporovane formaty galerie: JPG, JPEG, PNG, GIF, BMP, WEBP, AVIF, MP4 a WEBM. Videa se prehravaji automaticky bez zvuku; v nahledu pres celou obrazovku maji ovladani.
 
+Na mobilu otocenem na sirku otevre dvojite klepnuti na obrazek nativni celoobrazovkovou prezentaci. Pokud ji prohlizec nepodporuje, pouzije se stejny rezim pres cely dostupny viewport; dalsi dvojite klepnuti ovlada priblizeni.
+
 ## Popis a odkaz slozky
 
-Pro textovy popis galerie vloz primo do jeji slozky soubor `content.md`. Popis se zobrazi na hlavni portfolio strance primo pod nazvem odpovidajici kategorie nebo podgalerie. Podporovane jsou odstavce, nadpisy, tucny a kurzivni text, odkazy a cislovane i necislovane seznamy. HTML zapsane primo v Markdownu se nevykonava.
+Pro dvojjazycny textovy popis galerie vloz primo do jeji slozky soubory `content.en.md` (anglicky) a `content.cs.md` (cesky). Web zobrazi variantu podle zvoleneho jazyka. Starsi soubor `content.md` zustava podporovany jako zalozni text pro oba jazyky; lokalizovane soubory maji prednost. Jako cesky alias je podporovan take nazev `content.cz.md`, ale doporuceny je standardni kod `cs`.
+
+Popis se zobrazi na hlavni portfolio strance primo pod nazvem odpovidajici kategorie nebo podgalerie. Podporovane jsou odstavce, nadpisy, tucny a kurzivni text, odkazy a cislovane i necislovane seznamy. HTML zapsane primo v Markdownu se nevykonava.
 
 Externi odkaz lze pridat libovolnym Windows `.url` souborem ve stejne slozce. Pouzije se hodnota `URL=` a pouze platna adresa zacinajici `https://` nebo `http://`. Neplatny nebo prazdny odkaz se na webu nezobrazi.
 

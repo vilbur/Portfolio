@@ -103,6 +103,14 @@
     return container.childElementCount ? container : null;
   };
 
+  const localizedMarkdown = (markdown) => {
+    if (typeof markdown === "string") return markdown;
+    return markdown?.[activeLanguage]?.trim()
+      || markdown?.en?.trim()
+      || markdown?.cs?.trim()
+      || null;
+  };
+
   window.PORTFOLIO_CONTENT_MARKUP = { render: renderMarkdown, safeLink: safeContentLink };
 
   const data = window.PORTFOLIO_DATA;
@@ -123,9 +131,14 @@
   const languageButtons = document.querySelectorAll("[data-language]");
   const specializationWord = document.querySelector("[data-specialization-word]");
   const specializationAccessible = document.querySelector("[data-specialization-accessible]");
+  const resumeDownload = document.querySelector("[data-resume-download]");
   const languageStorageKey = "vilbur-portfolio-language";
+  const resumeFiles = {
+    en: "assets/about/Lubor Černý - Resume EN.docx",
+    cs: "assets/about/Lubor Černý - Resume CZ.docx",
+  };
 
-  let activeCategory = "all";
+  let activeNavigationCategory = null;
   let visibleProjects = [...data.projects];
   let activeProjectIndex = 0;
   let lastFocusedCard = null;
@@ -282,6 +295,9 @@
   const makeProjectMedia = (project, modifier = "") => {
     const wrapper = document.createElement("div");
     wrapper.className = `project-media ${modifier}`.trim();
+    if (!modifier.includes("lightbox") && project.mediaType === "image") {
+      wrapper.dataset.thumbnail = project.thumbnail;
+    }
 
     if (project.image && project.mediaType === "video") {
       const video = document.createElement("video");
@@ -331,18 +347,38 @@
     filterContainers.forEach((container) => {
       container.replaceChildren();
       data.categories.forEach((category) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "filter-button";
-        button.textContent = category.id === "all" ? translate("work.allWork") : category.label;
-        button.dataset.category = category.id;
-        button.setAttribute("aria-pressed", String(category.id === activeCategory));
-        container.append(button);
+        const link = document.createElement("a");
+        link.className = "filter-button";
+        link.textContent = category.label;
+        link.href = `#gallery-group-${toDomId(category.id)}`;
+        link.dataset.category = category.id;
+        if (category.id === activeNavigationCategory) link.setAttribute("aria-current", "location");
+        container.append(link);
       });
     });
   };
 
   let stickyCategoryFrame;
+  const setStickyHeadingTriggerState = (heading, enabled) => {
+    const title = heading.querySelector(".gallery-heading-title-row > h3");
+    if (!title) return;
+
+    if (enabled) {
+      title.dataset.categoryMenuTrigger = "";
+      title.setAttribute("role", "button");
+      title.setAttribute("tabindex", "0");
+      title.setAttribute("aria-controls", "work-submenu");
+      title.setAttribute("aria-expanded", workToggle?.getAttribute("aria-expanded") ?? "false");
+      return;
+    }
+
+    delete title.dataset.categoryMenuTrigger;
+    title.removeAttribute("role");
+    title.removeAttribute("tabindex");
+    title.removeAttribute("aria-controls");
+    title.removeAttribute("aria-expanded");
+  };
+
   const updateStickyCategoryHeadings = () => {
     window.cancelAnimationFrame(stickyCategoryFrame);
     stickyCategoryFrame = window.requestAnimationFrame(() => {
@@ -354,6 +390,7 @@
       document.querySelectorAll(".gallery-group-heading").forEach((heading) => {
         if (!isMobile) {
           heading.classList.remove("is-stuck");
+          setStickyHeadingTriggerState(heading, false);
           return;
         }
 
@@ -366,14 +403,13 @@
           && groupRect.bottom > stickyTop + headingRect.height,
         );
         heading.classList.toggle("is-stuck", isStuck);
+        setStickyHeadingTriggerState(heading, isStuck);
       });
     });
   };
 
   const renderGallery = () => {
-    const visibleCategories = data.categories.filter(
-      (category) => category.id !== "all" && (activeCategory === "all" || category.id === activeCategory),
-    );
+    const visibleCategories = data.categories;
     visibleProjects = visibleCategories.flatMap((category) =>
       data.projects.filter((project) => project.category === category.id),
     );
@@ -401,7 +437,7 @@
       heading.append(categoryContent);
 
       group.append(heading);
-      const categoryDescription = renderMarkdown(category.markdown);
+      const categoryDescription = renderMarkdown(localizedMarkdown(category.markdown));
       if (categoryDescription) {
         heading.classList.add("has-description");
         group.append(categoryDescription);
@@ -437,7 +473,9 @@
         subheading.append(subgroupContent);
 
         const grid = document.createElement("div");
-        const preferredColumns = [1, 2, 3, 5, 6].includes(subcategoryProjects.length) ? 3 : 4;
+        const preferredColumns = subcategoryProjects.length === 4
+          ? 2
+          : ([1, 2, 3, 5, 6].includes(subcategoryProjects.length) ? 3 : 4);
         grid.className = `project-grid project-grid--cols-${preferredColumns}`;
 
         subcategoryProjects.forEach((project) => {
@@ -461,14 +499,22 @@
           overlay.setAttribute("aria-hidden", "true");
           overlay.textContent = translate("gallery.viewFullscreen");
           button.append(overlay);
-          button.addEventListener("click", () => openLightbox(visibleIndex, button));
+          let activationPointerType = "mouse";
+          button.addEventListener("pointerdown", (event) => {
+            activationPointerType = event.pointerType;
+          });
+          button.addEventListener("click", (event) => openLightbox(visibleIndex, button, {
+            pointerType: activationPointerType,
+            clientX: event.clientX,
+            clientY: event.clientY,
+          }));
 
           card.append(button);
           grid.append(card);
         });
 
         subgroup.append(subheading);
-        const subcategoryDescription = renderMarkdown(subcategoryDetails.markdown);
+        const subcategoryDescription = renderMarkdown(localizedMarkdown(subcategoryDetails.markdown));
         if (subcategoryDescription) {
           subheading.classList.add("has-description");
           subgroup.append(subcategoryDescription);
@@ -500,7 +546,38 @@
 
   const activeLightboxImage = () => lightboxMedia.querySelector(".project-media--lightbox img");
   const activeLightboxWrapper = () => lightboxMedia.querySelector(".project-media--lightbox");
+  const activeFullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const isMobileLandscape = (event) =>
+    event.pointerType !== "mouse" && window.innerWidth > window.innerHeight && window.innerHeight <= 680;
   const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+
+  const requestLightboxFullscreen = () => {
+    lightbox.classList.add("is-mobile-fullscreen");
+    const requestFullscreen = lightbox.requestFullscreen || lightbox.webkitRequestFullscreen;
+    if (!requestFullscreen) return;
+
+    try {
+      const request = requestFullscreen.call(lightbox, { navigationUI: "hide" });
+      request?.catch?.(() => {
+        // Keep the edge-to-edge CSS fallback when the browser cannot expose
+        // the native fullscreen API for a dialog element (notably older iOS).
+      });
+    } catch {
+      // The CSS fallback already fills the visual viewport.
+    }
+  };
+
+  const exitLightboxFullscreen = () => {
+    if (activeFullscreenElement() === lightbox) {
+      const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+      try {
+        exitFullscreen?.call(document)?.catch?.(() => {});
+      } catch {
+        // Closing the dialog also exits fullscreen in supporting browsers.
+      }
+    }
+    lightbox.classList.remove("is-mobile-fullscreen");
+  };
 
   const clampPan = (x, y, scale = zoomState.scale) => {
     const image = activeLightboxImage();
@@ -544,8 +621,16 @@
     lastTap = { time: 0, x: 0, y: 0 };
   };
 
-  const toggleZoomAt = (clientX, clientY) => {
+  const handleImageDoubleTap = (event) => {
     if (!activeLightboxImage()) return;
+    if (
+      isMobileLandscape(event)
+      && !activeFullscreenElement()
+      && !lightbox.classList.contains("is-mobile-fullscreen")
+    ) {
+      requestLightboxFullscreen();
+      return;
+    }
     if (zoomState.scale > 1) {
       resetZoom();
       return;
@@ -553,8 +638,8 @@
 
     const viewport = lightboxMedia.getBoundingClientRect();
     zoomState.scale = doubleTapScale;
-    zoomState.x = -(clientX - (viewport.left + viewport.width / 2)) * (zoomState.scale - 1);
-    zoomState.y = -(clientY - (viewport.top + viewport.height / 2)) * (zoomState.scale - 1);
+    zoomState.x = -(event.clientX - (viewport.left + viewport.width / 2)) * (zoomState.scale - 1);
+    zoomState.y = -(event.clientY - (viewport.top + viewport.height / 2)) * (zoomState.scale - 1);
     applyZoom();
   };
 
@@ -620,12 +705,21 @@
     }
   };
 
-  const openLightbox = (index, trigger) => {
+  const openLightbox = (index, trigger, activationEvent = null) => {
     activeProjectIndex = index;
     lastFocusedCard = trigger;
     updateLightbox();
     lightbox.showModal();
     document.body.classList.add("is-locked");
+    if (activationEvent && isMobileLandscape(activationEvent)) {
+      // Seed the gesture with the thumbnail tap so a true double tap can
+      // continue directly into fullscreen after the dialog opens.
+      lastTap = {
+        time: Date.now(),
+        x: activationEvent.clientX,
+        y: activationEvent.clientY,
+      };
+    }
     const activeVideo = lightboxMedia.querySelector("video");
     if (activeVideo) {
       const playRequest = activeVideo.play();
@@ -635,6 +729,7 @@
 
   const closeLightbox = () => {
     resetZoom();
+    exitLightboxFullscreen();
     lightbox.close();
     document.body.classList.remove("is-locked");
     lastFocusedCard?.focus();
@@ -668,7 +763,7 @@
           now - lastTap.time < 330 &&
           Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < 36
         ) {
-          toggleZoomAt(event.clientX, event.clientY);
+          handleImageDoubleTap(event);
           lastTap = { time: 0, x: 0, y: 0 };
         } else {
           lastTap = { time: now, x: event.clientX, y: event.clientY };
@@ -680,7 +775,7 @@
         now - lastTap.time < 330 &&
         Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < 36
       ) {
-        toggleZoomAt(event.clientX, event.clientY);
+        handleImageDoubleTap(event);
         lastTap = { time: 0, x: 0, y: 0 };
       } else {
         lastTap = { time: now, x: event.clientX, y: event.clientY };
@@ -739,6 +834,12 @@
   lightboxMedia.addEventListener("pointerup", (event) => finishLightboxGesture(event));
   lightboxMedia.addEventListener("pointercancel", (event) => finishLightboxGesture(event, true));
   lightboxMedia.addEventListener("dblclick", (event) => event.preventDefault());
+  document.addEventListener("fullscreenchange", () => {
+    if (activeFullscreenElement() !== lightbox) lightbox.classList.remove("is-mobile-fullscreen");
+  });
+  document.addEventListener("webkitfullscreenchange", () => {
+    if (activeFullscreenElement() !== lightbox) lightbox.classList.remove("is-mobile-fullscreen");
+  });
 
   const applyLanguage = (language, { persist = true, rerender = true } = {}) => {
     activeLanguage = language === "cs" ? "cs" : "en";
@@ -760,6 +861,12 @@
     document.querySelectorAll("[data-i18n-title]").forEach((element) => {
       element.title = translate(element.dataset.i18nTitle);
     });
+
+    if (resumeDownload) {
+      const resumeFile = resumeFiles[activeLanguage];
+      resumeDownload.href = resumeFile;
+      resumeDownload.download = resumeFile.split("/").at(-1);
+    }
 
     languageButtons.forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.language === activeLanguage));
@@ -792,36 +899,70 @@
     if (!workToggle || !mobileFilters) return;
     workToggle.setAttribute("aria-expanded", String(open));
     mobileFilters.hidden = !open;
+    document.querySelectorAll("[data-category-menu-trigger]").forEach((trigger) => {
+      trigger.setAttribute("aria-expanded", String(open));
+    });
   };
 
   workToggle?.addEventListener("click", () => {
     setWorkSubmenu(workToggle.getAttribute("aria-expanded") !== "true");
   });
 
+  const toggleWorkSubmenuFromStickyHeading = () => {
+    if (!window.matchMedia("(max-width: 680px)").matches) return;
+    setWorkSubmenu(workToggle?.getAttribute("aria-expanded") !== "true");
+  };
+
+  gallery.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-category-menu-trigger]")) return;
+    toggleWorkSubmenuFromStickyHeading();
+  });
+  gallery.addEventListener("keydown", (event) => {
+    if (!event.target.closest("[data-category-menu-trigger]") || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    toggleWorkSubmenuFromStickyHeading();
+  });
+
   filterContainers.forEach((container) => {
     container.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-category]");
-      if (!button) return;
-      activeCategory = button.dataset.category;
+      const link = event.target.closest("[data-category]");
+      if (!link) return;
+      event.preventDefault();
+      activeNavigationCategory = link.dataset.category;
       filterContainers.forEach((filterContainer) => {
-        filterContainer.querySelectorAll("button").forEach((item) => {
-          item.setAttribute("aria-pressed", String(item.dataset.category === activeCategory));
+        filterContainer.querySelectorAll("[data-category]").forEach((item) => {
+          if (item.dataset.category === activeNavigationCategory) {
+            item.setAttribute("aria-current", "location");
+          } else {
+            item.removeAttribute("aria-current");
+          }
         });
       });
-      renderGallery();
+      setWorkSubmenu(false);
 
-      if (container === mobileFilters) {
-        setWorkSubmenu(false);
-        document.querySelector("#work")?.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-          block: "start",
-        });
-      }
+      const target = document.getElementById(`gallery-group-${toDomId(activeNavigationCategory)}`)
+        ?.closest(".gallery-group");
+      if (!target) return;
+      const headerHeight = Number.parseFloat(
+        window.getComputedStyle(document.documentElement).getPropertyValue("--header-height"),
+      ) || 0;
+      const filterHeight = filters && window.getComputedStyle(filters).display !== "none"
+        ? filters.getBoundingClientRect().height
+        : 0;
+      const targetTop = target.getBoundingClientRect().top + window.scrollY - headerHeight - filterHeight;
+      window.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      });
     });
   });
 
   document.addEventListener("click", (event) => {
-    if (workToggle?.getAttribute("aria-expanded") === "true" && !event.target.closest(".nav-work")) {
+    if (
+      workToggle?.getAttribute("aria-expanded") === "true"
+      && !event.target.closest(".nav-work")
+      && !event.target.closest("[data-category-menu-trigger]")
+    ) {
       setWorkSubmenu(false);
     }
   });
@@ -850,6 +991,7 @@
 
   lightbox.addEventListener("close", () => {
     resetZoom();
+    exitLightboxFullscreen();
     document.body.classList.remove("is-locked");
   });
 
@@ -897,6 +1039,7 @@
   const heroImages = [];
   let activeHeroIndex = 0;
   let heroTimer;
+  let heroSwipeStart = null;
 
   heroSlides.forEach((slide, index) => {
     const image = document.createElement("img");
@@ -905,6 +1048,7 @@
     image.className = "hero-image";
     image.loading = index === 0 ? "eager" : "lazy";
     image.decoding = "async";
+    image.draggable = false;
     image.addEventListener("load", () => heroMedia.querySelector(".render-placeholder")?.remove());
     image.addEventListener("error", () => image.remove());
     heroMedia.insertBefore(image, heroMedia.firstChild);
@@ -938,6 +1082,38 @@
   heroControls.hidden = heroSlides.length < 2;
   document.querySelector("[data-hero-prev]").addEventListener("click", () => moveHeroCarousel(-1));
   document.querySelector("[data-hero-next]").addEventListener("click", () => moveHeroCarousel(1));
+
+  heroMedia.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.touches.length !== 1 || heroSlides.length < 2) return;
+      const touch = event.touches[0];
+      heroSwipeStart = { x: touch.clientX, y: touch.clientY };
+      stopHeroCarousel();
+    },
+    { passive: true },
+  );
+  heroMedia.addEventListener(
+    "touchend",
+    (event) => {
+      if (!heroSwipeStart) return;
+      const touch = event.changedTouches[0];
+      const distanceX = touch.clientX - heroSwipeStart.x;
+      const distanceY = touch.clientY - heroSwipeStart.y;
+      const isHorizontalSwipe = Math.abs(distanceX) >= 45 && Math.abs(distanceX) > Math.abs(distanceY) * 1.2;
+      heroSwipeStart = null;
+      if (isHorizontalSwipe) {
+        moveHeroCarousel(distanceX < 0 ? 1 : -1);
+      } else {
+        startHeroCarousel();
+      }
+    },
+    { passive: true },
+  );
+  heroMedia.addEventListener("touchcancel", () => {
+    heroSwipeStart = null;
+    startHeroCarousel();
+  });
   heroMedia.addEventListener("mouseenter", stopHeroCarousel);
   heroMedia.addEventListener("mouseleave", startHeroCarousel);
   heroMedia.addEventListener("focusin", stopHeroCarousel);
