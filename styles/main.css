@@ -1749,13 +1749,16 @@ img {
   }
 
   .gallery-group-heading {
-    position: sticky;
+    position: relative;
     z-index: 15;
-    top: var(--header-height);
     grid-template-columns: 1fr;
     gap: 12px;
     background: rgba(8, 13, 19, 0.96);
     backdrop-filter: blur(14px);
+  }
+
+  .gallery-group-heading h3 {
+    transition: none;
   }
 
   .gallery-group-heading.is-stuck h3 {
@@ -1768,7 +1771,11 @@ img {
   }
 
   .gallery-group-heading.is-stuck {
+    position: sticky;
+    z-index: 17;
+    top: var(--header-height);
     padding-block: 10px;
+    background: rgb(8, 13, 19);
   }
 
   .gallery-group-heading.is-stuck .gallery-heading-title-row {

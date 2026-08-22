@@ -391,6 +391,14 @@
     title.removeAttribute("aria-expanded");
   };
 
+  const clearStickyCategoryHeadings = () => {
+    window.cancelAnimationFrame(stickyCategoryFrame);
+    document.querySelectorAll(".gallery-group-heading").forEach((heading) => {
+      heading.classList.remove("is-stuck");
+      setStickyHeadingTriggerState(heading, false);
+    });
+  };
+
   const updateStickyCategoryHeadings = () => {
     window.cancelAnimationFrame(stickyCategoryFrame);
     stickyCategoryFrame = window.requestAnimationFrame(() => {
@@ -398,24 +406,28 @@
       const stickyTop = Number.parseFloat(
         window.getComputedStyle(document.documentElement).getPropertyValue("--header-height"),
       ) || 0;
+      const headings = [...document.querySelectorAll(".gallery-group-heading")];
 
-      document.querySelectorAll(".gallery-group-heading").forEach((heading) => {
-        if (!isMobile) {
+      if (!isMobile) {
+        headings.forEach((heading) => {
           heading.classList.remove("is-stuck");
           setStickyHeadingTriggerState(heading, false);
-          return;
-        }
+        });
+        return;
+      }
 
-        const headingRect = heading.getBoundingClientRect();
+      let activeHeading = null;
+      headings.forEach((heading) => {
         const groupRect = heading.closest(".gallery-group")?.getBoundingClientRect();
-        const isStuck = Boolean(
-          groupRect
-          && groupRect.top < stickyTop
-          && headingRect.top <= stickyTop + 1
-          && groupRect.bottom > stickyTop + headingRect.height,
-        );
-        heading.classList.toggle("is-stuck", isStuck);
-        setStickyHeadingTriggerState(heading, isStuck);
+        if (groupRect && groupRect.top <= stickyTop + 1 && groupRect.bottom > stickyTop + 1) {
+          activeHeading = heading;
+        }
+      });
+
+      headings.forEach((heading) => {
+        const isActive = heading === activeHeading;
+        heading.classList.toggle("is-stuck", isActive);
+        setStickyHeadingTriggerState(heading, isActive);
       });
     });
   };
@@ -988,13 +1000,19 @@
       const target = document.getElementById(`gallery-group-${toDomId(activeNavigationCategory)}`)
         ?.closest(".gallery-group");
       if (!target) return;
+      clearStickyCategoryHeadings();
       const headerHeight = Number.parseFloat(
         window.getComputedStyle(document.documentElement).getPropertyValue("--header-height"),
       ) || 0;
       const filterHeight = filters && window.getComputedStyle(filters).display !== "none"
         ? filters.getBoundingClientRect().height
         : 0;
-      const targetTop = target.getBoundingClientRect().top + window.scrollY - headerHeight - filterHeight;
+      const stickyActivationOffset = window.matchMedia("(max-width: 680px)").matches ? 2 : 0;
+      const targetTop = target.getBoundingClientRect().top
+        + window.scrollY
+        - headerHeight
+        - filterHeight
+        + stickyActivationOffset;
       window.scrollTo({
         top: Math.max(0, targetTop),
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
