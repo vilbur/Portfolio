@@ -1030,7 +1030,7 @@ img {
 .about {
   position: relative;
   display: grid;
-  grid-template-columns: 1.45fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(40%, 1.25fr);
   gap: clamp(60px, 10vw, 170px);
   padding: clamp(110px, 14vw, 210px) 0;
   border-top: 1px solid var(--line);
@@ -1091,58 +1091,54 @@ img {
   border-top: 1px solid var(--line);
 }
 
-.selected-projects-title {
+.project-participation-list {
   margin: 0;
-  padding: 18px 0;
+}
+
+.project-participation-row {
+  display: grid;
+  padding: 16px 0;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(36px, 3vw, 64px);
   border-bottom: 1px solid var(--line);
-  color: #66727d;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
-.selected-project-groups {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px;
-  padding-top: 24px;
-}
-
-.selected-project-groups h3 {
-  margin: 0 0 14px;
-  color: var(--paper);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.selected-project-groups ul {
-  display: grid;
+.project-participation-row dt,
+.project-participation-row dd {
   margin: 0;
-  padding: 0;
-  gap: 7px;
-  list-style: none;
 }
 
-.selected-project-groups li {
-  color: #aab3bb;
-  font-size: 0.86rem;
+.project-participation-row dt {
+  color: #cbd1d6;
+  font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
-.selected-project-groups a {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
+.project-participation-row dt a {
   border-bottom: 1px solid transparent;
   transition: color 180ms ease, border-color 180ms ease;
 }
 
-.selected-project-groups a:hover,
-.selected-project-groups a:focus-visible {
-  color: var(--paper);
+.project-participation-row dt a:hover,
+.project-participation-row dt a:focus-visible {
+  color: var(--accent);
   border-color: var(--accent);
+}
+
+.project-participation-row ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 5px;
+  list-style: none;
+}
+
+.project-participation-row li {
+  color: #aab3bb;
+  font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+  line-height: 1.4;
 }
 
 .disciplines {
@@ -1495,6 +1491,17 @@ img {
   outline-offset: 4px;
 }
 
+@media (max-width: 1150px) {
+  .about-work {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .about-work .project-participation-row {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
 @media (max-width: 900px) {
   :root {
     --shell: min(100% - 32px, 1480px);
@@ -1894,8 +1901,15 @@ img {
     margin-top: 36px;
   }
 
-  .selected-project-groups a {
-    min-height: 44px;
+  .project-participation-row {
+    padding: 14px 0;
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .project-participation-row dt,
+  .project-participation-row li {
+    font-size: 1rem;
   }
 
   .contact h2 {
@@ -2153,10 +2167,6 @@ img {
 
   .contact h2 {
     font-size: clamp(3.2rem, 16vw, 4.2rem);
-  }
-
-  .selected-project-groups {
-    grid-template-columns: 1fr;
   }
 
   .project-grid .project-card {

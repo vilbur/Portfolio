@@ -186,7 +186,7 @@
           about: {
             eyebrow: "About",
             meTitle: "About me",
-            title: "About my work",
+            title: "Selected Projects",
             workEyebrow: "Work",
             role: "3D Artist",
             educationLabel: "Education",
@@ -201,9 +201,6 @@
             },
             photoAlt: "Portrait of Lubor Černý",
             resume: "Download resume",
-            selectedProjects: "Participation in projects",
-            pcGames: "PC Games",
-            cartoonMovies: "Cartoon Movies",
           },
           contact: {
             eyebrow: "Contact",
@@ -262,7 +259,7 @@
           about: {
             eyebrow: "O mně",
             meTitle: "O mně",
-            title: "O mé práci",
+            title: "Vybrané projekty",
             workEyebrow: "Práce",
             role: "3D grafik",
             educationLabel: "Vzdělání",
@@ -277,9 +274,6 @@
             },
             photoAlt: "Portrét Lubora Černého",
             resume: "Stáhnout životopis",
-            selectedProjects: "Účast na projektech",
-            pcGames: "PC hry",
-            cartoonMovies: "Animované filmy",
           },
           contact: {
             eyebrow: "Kontakt",
