@@ -11,11 +11,12 @@ $aboutSourceRoot = Join-Path $portfolioRoot "About"
 $aboutDestinationRoot = Join-Path $webRoot "assets\about"
 $indexPath = Join-Path $webRoot "index.html"
 $contentMetadataScript = Join-Path $PSScriptRoot "content-metadata.ps1"
+$gifMetadataScript = Join-Path $PSScriptRoot "gif-metadata.ps1"
 
 $imageExtensions = @(".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".avif")
-$videoExtensions = @(".mp4", ".webm")
-$mediaExtensions = $imageExtensions + $videoExtensions
+$mediaExtensions = $imageExtensions
 $aboutAssetExtensions = $imageExtensions + @(".docx")
+$ignoredPublicFolderNames = @("_VIDEO")
 
 if (-not (Test-Path -LiteralPath $sourceRoot)) {
   throw "Source media folder was not found: $sourceRoot"
@@ -29,10 +30,19 @@ if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
 Add-Type -AssemblyName System.Drawing
 $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
 . $contentMetadataScript
+. $gifMetadataScript
 
 function Test-SupportedMedia {
   param([System.IO.FileInfo]$File)
   return $mediaExtensions -contains $File.Extension.ToLowerInvariant()
+}
+
+function Test-IsIgnoredPublicPath {
+  param([System.IO.FileInfo]$File)
+
+  $relativePath = $File.FullName.Substring($sourceRoot.Length + 1)
+  $directoryParts = [System.IO.Path]::GetDirectoryName($relativePath) -split '[\\/]'
+  return @($directoryParts | Where-Object { $ignoredPublicFolderNames -contains $_ }).Count -gt 0
 }
 
 function Get-FileVersion {
@@ -152,9 +162,28 @@ function Get-ImageMetadata {
       Title = $title
       Description = $description
       Thumbnail = Get-ThumbnailInstruction -SpecialInstructions $specialInstructions
+      VideoUrl = $null
     }
   } finally {
     $image.Dispose()
+  }
+}
+
+function Get-GalleryMediaMetadata {
+  param([System.IO.FileInfo]$File)
+
+  switch ($File.Extension.ToLowerInvariant()) {
+    ".jpg" { return Get-ImageMetadata -Path $File.FullName }
+    ".jpeg" { return Get-ImageMetadata -Path $File.FullName }
+    ".gif" { return Get-GifMetadata -Path $File.FullName }
+    default {
+      return [PSCustomObject]@{
+        Title = $null
+        Description = $null
+        Thumbnail = "cover"
+        VideoUrl = $null
+      }
+    }
   }
 }
 
@@ -180,7 +209,7 @@ function Convert-BitmapToJpeg {
 }
 
 $sourceFiles = Get-ChildItem -LiteralPath $sourceRoot -File -Recurse -Force |
-  Where-Object { Test-SupportedMedia $_ } |
+  Where-Object { (Test-SupportedMedia $_) -and -not (Test-IsIgnoredPublicPath $_) } |
   Sort-Object FullName
 
 $expectedDestinations = New-Object "System.Collections.Generic.HashSet[string]" (
@@ -219,26 +248,19 @@ $records = foreach ($sourceFile in $sourceFiles) {
   }
 
   $webFile = Get-Item -LiteralPath $destination
-  $mediaType = if ($videoExtensions -contains $sourceExtension) { "video" } else { "image" }
-  $format = if ($mediaType -eq "video") {
-    "wide"
-  } else {
-    Get-ImageFormat -Path $destination -Extension $webFile.Extension
-  }
-  $imageMetadata = if ($sourceExtension -in @(".jpg", ".jpeg")) {
-    Get-ImageMetadata -Path $sourceFile.FullName
-  } else {
-    [PSCustomObject]@{ Title = $null; Description = $null; Thumbnail = "cover" }
-  }
+  $mediaMetadata = Get-GalleryMediaMetadata -File $sourceFile
+  $mediaType = if ($mediaMetadata.VideoUrl) { "video" } else { "image" }
+  $format = Get-ImageFormat -Path $destination -Extension $webFile.Extension
 
   [PSCustomObject]@{
     Path = "assets/library/" + $webRelative.Replace("\", "/")
     Format = $format
     Type = $mediaType
     Version = Get-FileVersion $webFile
-    Title = $imageMetadata.Title
-    Description = $imageMetadata.Description
-    Thumbnail = $imageMetadata.Thumbnail
+    Title = $mediaMetadata.Title
+    Description = $mediaMetadata.Description
+    Thumbnail = $mediaMetadata.Thumbnail
+    VideoUrl = $mediaMetadata.VideoUrl
   }
 }
 
@@ -267,10 +289,16 @@ $catalogLines = foreach ($record in $records) {
     ConvertTo-Json -InputObject $record.Description -Compress
   }
   $thumbnailValue = ConvertTo-Json -InputObject $record.Thumbnail -Compress
-  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue, thumbnail: $thumbnailValue },"
+  $videoUrlValue = if ([string]::IsNullOrWhiteSpace($record.VideoUrl)) {
+    "null"
+  } else {
+    ConvertTo-Json -InputObject $record.VideoUrl -Compress
+  }
+  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue, thumbnail: $thumbnailValue, videoUrl: $videoUrlValue },"
 }
 
-$folderMetadataRecords = Get-FolderMetadataRecords -RootPath $sourceRoot
+$folderMetadataRecords = Get-FolderMetadataRecords -RootPath $sourceRoot |
+  Where-Object { "_VIDEO" -notin @($_.Path -split "[\\/]") }
 $folderMetadataLines = foreach ($record in $folderMetadataRecords) {
   $pathValue = ConvertTo-Json -InputObject $record.Path -Compress
   $markdownValue = ConvertTo-Json -InputObject $record.Markdown -Compress
@@ -405,5 +433,5 @@ foreach ($aboutRecord in $aboutRecords) {
 )
 
 $imageCount = @($records | Where-Object Type -eq "image").Count
-$videoCount = @($records | Where-Object Type -eq "video").Count
-Write-Output "Content synchronized: $imageCount images, $videoCount videos, $($headerFiles.Count) header images, $($aboutRecords.Count) about files."
+$videoThumbnailCount = @($records | Where-Object Type -eq "video").Count
+Write-Output "Content synchronized: $imageCount images, $videoThumbnailCount YouTube thumbnails, $($headerFiles.Count) header images, $($aboutRecords.Count) about files."

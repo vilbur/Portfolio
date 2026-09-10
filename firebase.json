@@ -12,6 +12,7 @@
       "*.cmd",
       "tools/**",
       "wamp/**",
+      "**/_VIDEO/**",
       "**/.*",
       "**/node_modules/**"
     ],
@@ -27,7 +28,25 @@
         ]
       },
       {
-        "source": "**/*.@(jpg|jpeg|png|gif|webp|avif|mp4|webm)",
+        "source": "**/*.@(jpg|jpeg|png|webp|gif|avif|svg|ico)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(woff|woff2|ttf|otf|eot)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(css|js|mjs)",
         "headers": [
           {
             "key": "Cache-Control",

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# These paths are excluded from deployment too. The rules below are crawler hints,
+# not access controls; public gallery images remain indexable for image search.
+Disallow: /tools/
+Disallow: /wamp/
+Disallow: /*/_VIDEO/

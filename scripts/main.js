@@ -297,16 +297,75 @@
     if (playRequest) playRequest.catch(() => {});
   };
 
+  const parseVideoStartSeconds = (value) => {
+    if (!value) return 0;
+    if (/^\d+$/.test(value)) return Number(value);
+    const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+    if (!match) return 0;
+    return Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0);
+  };
+
+  const getYouTubeEmbedUrl = (value) => {
+    if (!value) return null;
+    try {
+      const url = new URL(value);
+      const host = url.hostname.toLowerCase().replace(/^www\./, "");
+      let videoId = null;
+
+      if (host === "youtu.be") {
+        videoId = url.pathname.split("/").filter(Boolean)[0];
+      } else if (["youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com"].includes(host)) {
+        if (url.pathname === "/watch") {
+          videoId = url.searchParams.get("v");
+        } else {
+          const parts = url.pathname.split("/").filter(Boolean);
+          if (["embed", "shorts", "live"].includes(parts[0])) videoId = parts[1];
+        }
+      }
+
+      if (!videoId || !/^[\w-]{6,}$/.test(videoId)) return null;
+
+      const embedUrl = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
+      embedUrl.searchParams.set("autoplay", "1");
+      embedUrl.searchParams.set("playsinline", "1");
+      embedUrl.searchParams.set("rel", "0");
+      const start = parseVideoStartSeconds(
+        url.searchParams.get("start") ||
+        url.searchParams.get("t") ||
+        new URLSearchParams(url.hash.replace(/^#/, "")).get("t"),
+      );
+      if (start > 0) embedUrl.searchParams.set("start", String(start));
+      return embedUrl.href;
+    } catch {
+      return null;
+    }
+  };
+
   const makeProjectMedia = (project, modifier = "") => {
     const wrapper = document.createElement("div");
     wrapper.className = `project-media ${modifier}`.trim();
-    if (!modifier.includes("lightbox") && project.mediaType === "image") {
+    const isLightboxMedia = modifier.includes("lightbox");
+    if (!isLightboxMedia && (project.mediaType === "image" || project.videoUrl)) {
       wrapper.dataset.thumbnail = project.thumbnail;
     }
 
-    if (project.image && project.mediaType === "video") {
+    if (isLightboxMedia && project.mediaType === "video" && project.videoUrl) {
+      const youtubeEmbedUrl = getYouTubeEmbedUrl(project.videoUrl);
+      if (youtubeEmbedUrl) {
+        const frame = document.createElement("iframe");
+        frame.src = youtubeEmbedUrl;
+        frame.title = project.alt || translate("gallery.openVideo");
+        frame.loading = "eager";
+        frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        frame.allowFullscreen = true;
+        frame.referrerPolicy = "strict-origin-when-cross-origin";
+        wrapper.append(frame);
+      } else {
+        wrapper.append(makePlaceholder(project, modifier));
+      }
+    } else if (project.image && project.mediaType === "video" && !project.videoUrl) {
       const video = document.createElement("video");
-      const isLightboxVideo = modifier.includes("lightbox");
+      const isLightboxVideo = isLightboxMedia;
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
@@ -341,9 +400,9 @@
       const image = document.createElement("img");
       image.src = project.image;
       image.alt = project.alt;
-      image.loading = modifier.includes("lightbox") ? "eager" : "lazy";
+      image.loading = isLightboxMedia ? "eager" : "lazy";
       image.decoding = "async";
-      image.draggable = !modifier.includes("lightbox");
+      image.draggable = !isLightboxMedia;
       image.addEventListener("error", () => {
         wrapper.replaceChildren(makePlaceholder(project, modifier));
       });
@@ -716,15 +775,18 @@
 
   const releaseLightboxVideo = () => {
     const video = lightboxMedia.querySelector("video");
-    if (!video) return;
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    }
+    const frame = lightboxMedia.querySelector("iframe");
+    if (frame) frame.src = "about:blank";
   };
 
   const preloadProject = (project) => {
     if (!project?.image || preloadCache.has(project.image)) return;
-    if (project.mediaType === "video") {
+    if (project.mediaType === "video" && !project.videoUrl) {
       // Video thumbnails already hold their metadata. Creating another hidden
       // video here can exhaust the small decoder pool on mobile devices.
       preloadCache.set(project.image, true);
@@ -863,7 +925,7 @@
   lightboxMedia.addEventListener("pointerdown", (event) => {
     if (!lightbox.open || gestureState.pointerId !== null) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (event.target.closest("video")) return;
+    if (event.target.closest("video, iframe")) return;
 
     gestureState.pointerId = event.pointerId;
     gestureState.mode = zoomState.scale > 1 ? "pan" : "swipe";

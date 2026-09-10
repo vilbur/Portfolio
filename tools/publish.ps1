@@ -21,6 +21,7 @@ function Assert-GeneratedSite {
   $siteRootPrefix = $siteRootFullPath + [System.IO.Path]::DirectorySeparatorChar
   $requiredFiles = @(
     "index.html",
+    "robots.txt",
     "styles/main.css",
     "scripts/image-catalog.js",
     "scripts/header-carousel.js",
@@ -44,7 +45,7 @@ function Assert-GeneratedSite {
       throw "The generated folder metadata does not contain the '$folderField' field."
     }
   }
-  foreach ($catalogField in @("format", "type", "version", "title", "description", "thumbnail")) {
+  foreach ($catalogField in @("format", "type", "version", "title", "description", "thumbnail", "videoUrl")) {
     if ($catalogContent -notmatch ("\b" + [regex]::Escape($catalogField) + "\s*:")) {
       throw "The generated catalog does not contain the '$catalogField' field required by the new website."
     }
@@ -116,6 +117,15 @@ function Assert-GeneratedSite {
     if (-not $referenceExists) {
       throw "Website references a file that is not in the deployment package: $reference"
     }
+  }
+
+  $forbiddenReleaseFiles = @(Get-ChildItem -LiteralPath $siteRootFullPath -File -Recurse -Force |
+    Where-Object {
+      $_.Extension.ToLowerInvariant() -in @(".mp4", ".webm") -or
+      $_.FullName -match "[\\/]_VIDEO[\\/]"
+    })
+  if ($forbiddenReleaseFiles.Count -gt 0) {
+    throw "Deployment package contains source video files or an _VIDEO directory."
   }
 
   return $mediaMatches.Count
@@ -288,6 +298,31 @@ $defaultCacheControl = $defaultCacheRule.headers |
   Select-Object -First 1
 if ($defaultCacheControl.value -notmatch "(?i)(no-cache|no-store|max-age=0)") {
   throw "Firebase must disable stale caching for the root HTML page."
+}
+
+if ($hostingConfig.hosting.ignore -notcontains "**/_VIDEO/**") {
+  throw "Firebase must ignore every _VIDEO directory as a deployment safety net."
+}
+
+$longCacheSources = @(
+  "**/*.@(jpg|jpeg|png|webp|gif|avif|svg|ico)",
+  "**/*.@(woff|woff2|ttf|otf|eot)",
+  "**/*.@(css|js|mjs)"
+)
+foreach ($source in $longCacheSources) {
+  $cacheRule = $hostingConfig.hosting.headers |
+    Where-Object source -eq $source |
+    Select-Object -First 1
+  $cacheControl = $cacheRule.headers |
+    Where-Object key -eq "Cache-Control" |
+    Select-Object -First 1
+  if (
+    $cacheControl.value -notmatch "(?i)\bpublic\b" -or
+    $cacheControl.value -notmatch "(?i)\bmax-age=31536000\b" -or
+    $cacheControl.value -notmatch "(?i)\bimmutable\b"
+  ) {
+    throw "Firebase long-lived cache policy is missing or incomplete for: $source"
+  }
 }
 
 if ($CheckOnly) {

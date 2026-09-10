@@ -7,14 +7,19 @@ $stagingRoot = [System.IO.Path]::GetFullPath((Join-Path $webRoot ".deploy"))
 $expectedStagingRoot = [System.IO.Path]::GetFullPath((Join-Path $webRoot ".deploy"))
 $syncScript = Join-Path $PSScriptRoot "sync-content.ps1"
 $metadataTest = Join-Path $PSScriptRoot "test-content-metadata.ps1"
+$gifMetadataTest = Join-Path $PSScriptRoot "test-gif-metadata.ps1"
+$mediaLoadingTest = Join-Path $PSScriptRoot "test-media-loading.ps1"
 $imageExtensions = @(".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif")
 $aboutAssetExtensions = $imageExtensions + @(".docx")
+$forbiddenReleaseExtensions = @(".mp4", ".webm")
 
 if (-not $stagingRoot.Equals($expectedStagingRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
   throw "Deployment staging path is not the expected Web/.deploy folder."
 }
 
 & $metadataTest
+& $gifMetadataTest
+& $mediaLoadingTest
 & $syncScript
 
 if (Test-Path -LiteralPath $stagingRoot) {
@@ -36,6 +41,7 @@ function Copy-ReleaseItem {
 }
 
 Copy-ReleaseItem "index.html"
+Copy-ReleaseItem "robots.txt"
 Copy-ReleaseItem "styles"
 Copy-ReleaseItem "scripts"
 Copy-ReleaseItem "assets\library"
@@ -51,6 +57,16 @@ if (Test-Path -LiteralPath $aboutSourceRoot -PathType Container) {
       New-Item -ItemType Directory -Force -Path (Split-Path $destination -Parent) | Out-Null
       Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
     }
+}
+
+$forbiddenReleaseFiles = @(Get-ChildItem -LiteralPath $stagingRoot -File -Recurse -Force |
+  Where-Object {
+    $forbiddenReleaseExtensions -contains $_.Extension.ToLowerInvariant() -or
+    $_.FullName -match "[\\/]_VIDEO[\\/]"
+  })
+if ($forbiddenReleaseFiles.Count -gt 0) {
+  $forbiddenPaths = ($forbiddenReleaseFiles | Select-Object -ExpandProperty FullName) -join [Environment]::NewLine
+  throw "Deployment package contains forbidden source video content:$([Environment]::NewLine)$forbiddenPaths"
 }
 
 $releaseFileCount = @(Get-ChildItem -LiteralPath $stagingRoot -File -Recurse -Force).Count

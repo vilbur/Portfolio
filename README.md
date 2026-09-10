@@ -39,7 +39,9 @@ Vzhled konkretniho JPG nahledu lze zmenit v poli IPTC Special Instructions. `thu
 
 Razeni je abecedni. Pro pevne poradi pouzij prefixy `01-`, `02-`, `03-`.
 
-Podporovane formaty galerie: JPG, JPEG, PNG, GIF, BMP, WEBP, AVIF, MP4 a WEBM. Videa se prehravaji automaticky bez zvuku; v nahledu pres celou obrazovku maji ovladani.
+Podporovane formaty galerie: JPG, JPEG, PNG, GIF, BMP, WEBP a AVIF. Soubory MP4 a WEBM se na Firebase nepublikuji.
+
+Video se pridava stale souborove: pouzij GIF jako nahled a do jeho GIF Comment metadata vloz YouTube adresu, napriklad `Video URL: https://youtu.be/VIDEO_ID`. Na strance se stahuje jen GIF nahled; prehravac z `youtube-nocookie.com` se vytvori az po otevreni polozky. Zdrojovy MP4 muze zustat v libovolne slozce `_VIDEO`, ktera je ze synchronizace i publikacniho balicku vzdy vyloucena.
 
 Na mobilu otocenem na sirku otevre dvojite klepnuti na obrazek nativni celoobrazovkovou prezentaci. Pokud ji prohlizec nepodporuje, pouzije se stejny rezim pres cely dostupny viewport; dalsi dvojite klepnuti ovlada priblizeni.
 
@@ -62,3 +64,7 @@ Portret pro sekci About patri do `Portfolio/About`. Pri nahledu i publikaci se a
 Produkce se neaktualizuje pri kazdem ulozeni souboru. To by mohlo zverejnit galerii behem kopirovani vice obrazku. Synchronizace je automaticka, ale posledni krok zustava vedomy dvojklik na `PUBLISH-WEB.cmd`.
 
 Pro prubezne lokalni generovani lze spustit `tools/watch-content.ps1`; sleduje zmeny, ale nikdy nic nepublikuje.
+
+## Ochrana provozu pres Cloudflare
+
+Firebase Hosting zustava zdrojem webu. Verejna vlastni domena ma byt vedena pres Cloudflare proxy; vychozi domeny `*.web.app` a `*.firebaseapp.com` proxyovat nelze. Presne doporucene DNS, cache, bot a rate-limit nastaveni je v [CLOUDFLARE.md](CLOUDFLARE.md).

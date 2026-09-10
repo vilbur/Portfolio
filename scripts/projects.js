@@ -46,15 +46,27 @@
     return humanize(cleanValue);
   };
 
+  const normalizeHttpUrl = (value) => {
+    if (!value) return null;
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+    } catch {
+      return null;
+    }
+  };
+
   const compareCatalogPaths = (leftEntry, rightEntry) => {
     const leftParts = leftEntry.path.replace("assets/library/", "").split("/");
     const rightParts = rightEntry.path.replace("assets/library/", "").split("/");
     const leftFolder = leftParts.slice(0, -1).join("/");
     const rightFolder = rightParts.slice(0, -1).join("/");
 
-    if (leftFolder === rightFolder && leftEntry.type !== rightEntry.type) {
-      if (leftEntry.type === "video") return -1;
-      if (rightEntry.type === "video") return 1;
+    const leftIsLocalVideo = leftEntry.type === "video" && !leftEntry.videoUrl;
+    const rightIsLocalVideo = rightEntry.type === "video" && !rightEntry.videoUrl;
+    if (leftFolder === rightFolder && leftIsLocalVideo !== rightIsLocalVideo) {
+      if (leftIsLocalVideo) return -1;
+      if (rightIsLocalVideo) return 1;
     }
 
     const partCount = Math.max(leftParts.length, rightParts.length);
@@ -108,6 +120,7 @@
       : metadataFor(galleryPath);
     const title = entry.title?.trim() || null;
     const description = entry.description?.trim() || null;
+    const videoUrl = normalizeHttpUrl(entry.videoUrl);
 
     return {
       title,
@@ -122,6 +135,7 @@
       sourcePath: entry.path,
       image: `${entry.path}?v=${entry.version}`,
       mediaType: entry.type ?? "image",
+      videoUrl,
       thumbnail: entry.thumbnail ?? "cover",
       alt: title || description || "",
       format: entry.format,
