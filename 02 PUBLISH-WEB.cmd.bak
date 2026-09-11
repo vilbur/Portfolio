@@ -1,7 +1,7 @@
 @echo off
 setlocal
 title Portfolio - publish website
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\publish.ps1" %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\publish.ps1"
 set "PUBLISH_EXIT=%ERRORLEVEL%"
 echo.
 if "%PUBLISH_EXIT%"=="0" (

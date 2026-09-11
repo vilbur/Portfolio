@@ -329,6 +329,7 @@
 
       const embedUrl = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
       embedUrl.searchParams.set("autoplay", "1");
+      embedUrl.searchParams.set("mute", "1");
       embedUrl.searchParams.set("playsinline", "1");
       embedUrl.searchParams.set("rel", "0");
       const start = parseVideoStartSeconds(
@@ -355,6 +356,12 @@
     if (isLightboxMedia && project.mediaType === "video" && project.videoUrl) {
       const youtubeEmbedUrl = getYouTubeEmbedUrl(project.videoUrl);
       if (youtubeEmbedUrl) {
+        const loadingIndicator = document.createElement("div");
+        loadingIndicator.className = "video-loading";
+        loadingIndicator.setAttribute("role", "status");
+        loadingIndicator.setAttribute("aria-live", "polite");
+        loadingIndicator.textContent = translate("gallery.loadingVideo");
+
         const frame = document.createElement("iframe");
         frame.src = youtubeEmbedUrl;
         frame.title = alternativeText || translate("gallery.openVideo");
@@ -362,7 +369,11 @@
         frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
         frame.allowFullscreen = true;
         frame.referrerPolicy = "strict-origin-when-cross-origin";
-        wrapper.append(frame);
+        frame.addEventListener("load", () => {
+          loadingIndicator.hidden = true;
+          wrapper.classList.add("is-video-loaded");
+        }, { once: true });
+        wrapper.append(loadingIndicator, frame);
       } else {
         wrapper.append(makePlaceholder(project, modifier));
       }
