@@ -215,10 +215,10 @@
             softwareToolsLabel: "Software & Tools",
             linksLabel: "Links",
             points: {
-              models: "3D models",
-              visualizations: "3D visualizations",
-              print: "Models and assets for 3D printing",
-              toolsAutomation: "Tools and automatization",
+              models: "3D Models",
+              visualizations: "Environments",
+              print: "Models & Assets for 3D Printing",
+              toolsAutomation: "Tools & Automation",
             },
             photoAlt: "Portrait of Lubor Černý",
             resume: "Download resume",
@@ -304,7 +304,7 @@
             linksLabel: "Odkazy",
             points: {
               models: "3D modely",
-              visualizations: "3D vizualizace",
+              visualizations: "3D prostředí",
               print: "Modely a podklady pro 3D tisk",
               toolsAutomation: "Nástroje a automatizace",
             },

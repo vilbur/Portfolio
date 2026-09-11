@@ -1055,7 +1055,7 @@ img {
 
 .profile-facts dt {
   color: #66727d;
-  font-size: 0.66rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -1064,15 +1064,15 @@ img {
 .profile-facts dd {
   margin: 0;
   color: #cbd1d6;
-  font-size: 0.9rem;
+  font-size: clamp(0.95rem, 1vw, 1.05rem);
   line-height: 1.5;
 }
 
 .profile-links {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .profile-link {
@@ -1160,7 +1160,7 @@ img {
   gap: 10px;
   border-bottom: 1px solid var(--accent);
   color: #cbd1d6;
-  font-size: 1rem;
+  font-size: 1.6rem;
   transition: color 180ms ease;
 }
 
@@ -1197,7 +1197,7 @@ img {
 
 .project-participation-row dt {
   color: #cbd1d6;
-  font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+  font-size: clamp(0.95rem, 1vw, 1.05rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -1205,6 +1205,7 @@ img {
 
 .project-participation-row dt a {
   border-bottom: 1px solid transparent;
+  font-size: 1.1rem;
   transition: color 180ms ease, border-color 180ms ease;
 }
 
@@ -1224,7 +1225,7 @@ img {
 
 .project-participation-row li {
   color: #aab3bb;
-  font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+  font-size: clamp(0.95rem, 1vw, 1.05rem);
   line-height: 1.4;
 }
 
@@ -2034,7 +2035,7 @@ img {
 
   .profile-facts dd {
     margin-top: 5px;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
   }
 
   .about {
@@ -2048,8 +2049,13 @@ img {
     line-height: 1.42;
   }
 
+  .profile-expertise-list {
+    font-size: 0.9rem;
+  }
+
   .about-resume {
     margin-top: 18px;
+
   }
 
   .selected-projects {
@@ -2064,7 +2070,7 @@ img {
 
   .project-participation-row dt,
   .project-participation-row li {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .site-footer {
