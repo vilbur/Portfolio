@@ -83,6 +83,30 @@ function Get-ImageFormat {
   }
 }
 
+function Get-ImageDimensions {
+  param([string]$Path, [string]$Extension)
+
+  if (@(".webp", ".avif") -contains $Extension.ToLowerInvariant()) {
+    return [PSCustomObject]@{ Width = $null; Height = $null }
+  }
+
+  $image = [System.Drawing.Image]::FromFile($Path)
+  try {
+    $width = $image.Width
+    $height = $image.Height
+    $orientationProperty = $image.PropertyItems | Where-Object Id -eq 274 | Select-Object -First 1
+    if ($orientationProperty -and $orientationProperty.Value.Length -ge 2) {
+      $orientation = [System.BitConverter]::ToUInt16($orientationProperty.Value, 0)
+      if ($orientation -in @(5, 6, 7, 8)) {
+        $width, $height = $height, $width
+      }
+    }
+    return [PSCustomObject]@{ Width = $width; Height = $height }
+  } finally {
+    $image.Dispose()
+  }
+}
+
 function Convert-MetadataBytesToText {
   param(
     [byte[]]$Bytes,
@@ -162,6 +186,7 @@ function Get-ImageMetadata {
       Title = $title
       Description = $description
       Thumbnail = Get-ThumbnailInstruction -SpecialInstructions $specialInstructions
+      ThumbnailPair = Get-ThumbnailPairInstruction -SpecialInstructions $specialInstructions
       VideoUrl = $null
     }
   } finally {
@@ -181,6 +206,7 @@ function Get-GalleryMediaMetadata {
         Title = $null
         Description = $null
         Thumbnail = "cover"
+        ThumbnailPair = $null
         VideoUrl = $null
       }
     }
@@ -251,6 +277,7 @@ $records = foreach ($sourceFile in $sourceFiles) {
   $mediaMetadata = Get-GalleryMediaMetadata -File $sourceFile
   $mediaType = if ($mediaMetadata.VideoUrl) { "video" } else { "image" }
   $format = Get-ImageFormat -Path $destination -Extension $webFile.Extension
+  $dimensions = Get-ImageDimensions -Path $destination -Extension $webFile.Extension
 
   [PSCustomObject]@{
     Path = "assets/library/" + $webRelative.Replace("\", "/")
@@ -260,6 +287,9 @@ $records = foreach ($sourceFile in $sourceFiles) {
     Title = $mediaMetadata.Title
     Description = $mediaMetadata.Description
     Thumbnail = $mediaMetadata.Thumbnail
+    ThumbnailPair = $mediaMetadata.ThumbnailPair
+    Width = $dimensions.Width
+    Height = $dimensions.Height
     VideoUrl = $mediaMetadata.VideoUrl
   }
 }
@@ -289,12 +319,19 @@ $catalogLines = foreach ($record in $records) {
     ConvertTo-Json -InputObject $record.Description -Compress
   }
   $thumbnailValue = ConvertTo-Json -InputObject $record.Thumbnail -Compress
+  $thumbnailPairValue = if ([string]::IsNullOrWhiteSpace($record.ThumbnailPair)) {
+    "null"
+  } else {
+    ConvertTo-Json -InputObject $record.ThumbnailPair -Compress
+  }
+  $widthValue = if ($null -eq $record.Width) { "null" } else { $record.Width }
+  $heightValue = if ($null -eq $record.Height) { "null" } else { $record.Height }
   $videoUrlValue = if ([string]::IsNullOrWhiteSpace($record.VideoUrl)) {
     "null"
   } else {
     ConvertTo-Json -InputObject $record.VideoUrl -Compress
   }
-  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue, thumbnail: $thumbnailValue, videoUrl: $videoUrlValue },"
+  "  { path: `"$safePath`", format: `"$($record.Format)`", type: `"$($record.Type)`", version: `"$($record.Version)`", title: $titleValue, description: $descriptionValue, thumbnail: $thumbnailValue, thumbnailPair: $thumbnailPairValue, width: $widthValue, height: $heightValue, videoUrl: $videoUrlValue },"
 }
 
 $folderMetadataRecords = Get-FolderMetadataRecords -RootPath $sourceRoot |

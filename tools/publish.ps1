@@ -45,7 +45,7 @@ function Assert-GeneratedSite {
       throw "The generated folder metadata does not contain the '$folderField' field."
     }
   }
-  foreach ($catalogField in @("format", "type", "version", "title", "description", "thumbnail", "videoUrl")) {
+  foreach ($catalogField in @("format", "type", "version", "title", "description", "thumbnail", "thumbnailPair", "width", "height", "videoUrl")) {
     if ($catalogContent -notmatch ("\b" + [regex]::Escape($catalogField) + "\s*:")) {
       throw "The generated catalog does not contain the '$catalogField' field required by the new website."
     }

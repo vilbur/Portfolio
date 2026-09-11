@@ -829,6 +829,30 @@ img {
   min-width: 0;
 }
 
+.thumbnail-pair {
+  display: flex;
+  flex: 0 0 100%;
+  min-width: 0;
+  gap: var(--project-grid-column-gap);
+}
+
+.project-grid .thumbnail-pair .project-card {
+  flex: var(--thumbnail-aspect) 1 0;
+}
+
+.thumbnail-pair .project-card .project-media {
+  aspect-ratio: var(--thumbnail-aspect);
+}
+
+.thumbnail-pair .project-card .project-media img {
+  object-fit: contain;
+  object-position: center;
+}
+
+.thumbnail-pair .project-open:hover .project-media img {
+  transform: none;
+}
+
 .project-grid--cols-3 .project-card {
   flex-basis: calc(33.333% - 18px);
 }
@@ -1753,6 +1777,14 @@ img {
 
   .project-grid .project-card {
     flex-basis: calc(50% - 6px);
+  }
+
+  .thumbnail-pair {
+    display: contents;
+  }
+
+  .project-grid .thumbnail-pair .project-card {
+    flex-basis: 100%;
   }
 
   .project-card,

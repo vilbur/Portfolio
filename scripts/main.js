@@ -474,6 +474,70 @@
     });
   };
 
+  const projectAspectRatio = (project) => {
+    const width = Number(project.width);
+    const height = Number(project.height);
+    return width > 0 && height > 0 ? width / height : null;
+  };
+
+  const validThumbnailPairs = (projects) => {
+    const groups = new Map();
+    projects.forEach((project) => {
+      if (!project.thumbnailPair) return;
+      const members = groups.get(project.thumbnailPair) ?? [];
+      members.push(project);
+      groups.set(project.thumbnailPair, members);
+    });
+
+    const pairs = new Map();
+    groups.forEach((members, pairId) => {
+      if (members.length !== 2 || members.some((project) => project.mediaType !== "image")) return;
+      const orderedMembers = [...members].sort(
+        (left, right) => projectAspectRatio(left) - projectAspectRatio(right),
+      );
+      const portraitAspect = projectAspectRatio(orderedMembers[0]);
+      const landscapeAspect = projectAspectRatio(orderedMembers[1]);
+      if (!(portraitAspect > 0 && portraitAspect < 1 && landscapeAspect > 1)) return;
+      pairs.set(pairId, orderedMembers);
+    });
+    return pairs;
+  };
+
+  const makeProjectCard = (project) => {
+    const visibleIndex = visibleProjects.indexOf(project);
+    const card = document.createElement("article");
+    card.className = `project-card project-card--${project.format}`;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "project-open";
+    button.setAttribute(
+      "aria-label",
+      project.title
+        ? translate("gallery.openProject", { label: project.title })
+        : translate(project.mediaType === "video" ? "gallery.openVideo" : "gallery.openImage"),
+    );
+    button.append(makeProjectMedia(project));
+
+    const overlay = document.createElement("span");
+    overlay.className = "project-overlay";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.textContent = translate("gallery.viewFullscreen");
+    button.append(overlay);
+    let activationPointerType = "mouse";
+    button.addEventListener("pointerdown", (event) => {
+      activationPointerType = event.pointerType;
+    });
+    button.addEventListener("click", (event) => openLightbox(visibleIndex, button, {
+      pointerType: activationPointerType,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    }));
+
+    card.append(button);
+    return card;
+  };
+
   const updateStickyCategoryHeadings = () => {
     window.cancelAnimationFrame(stickyCategoryFrame);
     stickyCategoryFrame = window.requestAnimationFrame(() => {
@@ -582,39 +646,25 @@
           : ([1, 2, 3, 5, 6].includes(subcategoryProjects.length) ? 3 : 4);
         grid.className = `project-grid project-grid--cols-${preferredColumns}`;
 
+        const thumbnailPairs = validThumbnailPairs(subcategoryProjects);
+        const renderedPairs = new Set();
         subcategoryProjects.forEach((project) => {
-          const visibleIndex = visibleProjects.indexOf(project);
-          const card = document.createElement("article");
-          card.className = `project-card project-card--${project.format}`;
+          const pair = thumbnailPairs.get(project.thumbnailPair);
+          if (!pair) {
+            grid.append(makeProjectCard(project));
+            return;
+          }
+          if (renderedPairs.has(project.thumbnailPair)) return;
 
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "project-open";
-          button.setAttribute(
-            "aria-label",
-            project.title
-              ? translate("gallery.openProject", { label: project.title })
-              : translate(project.mediaType === "video" ? "gallery.openVideo" : "gallery.openImage"),
-          );
-          button.append(makeProjectMedia(project));
-
-          const overlay = document.createElement("span");
-          overlay.className = "project-overlay";
-          overlay.setAttribute("aria-hidden", "true");
-          overlay.textContent = translate("gallery.viewFullscreen");
-          button.append(overlay);
-          let activationPointerType = "mouse";
-          button.addEventListener("pointerdown", (event) => {
-            activationPointerType = event.pointerType;
+          const pairRow = document.createElement("div");
+          pairRow.className = "thumbnail-pair";
+          pair.forEach((member) => {
+            const card = makeProjectCard(member);
+            card.style.setProperty("--thumbnail-aspect", String(projectAspectRatio(member)));
+            pairRow.append(card);
           });
-          button.addEventListener("click", (event) => openLightbox(visibleIndex, button, {
-            pointerType: activationPointerType,
-            clientX: event.clientX,
-            clientY: event.clientY,
-          }));
-
-          card.append(button);
-          grid.append(card);
+          renderedPairs.add(project.thumbnailPair);
+          grid.append(pairRow);
         });
 
         subgroup.append(subheading);

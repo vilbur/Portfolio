@@ -37,6 +37,8 @@ Viditelny titulek a popis obrazku se nacitaji vyhradne z vlozenych JPG metadata.
 
 Vzhled konkretniho JPG nahledu lze zmenit v poli IPTC Special Instructions. `thumbnail=contain` zobrazi cely obrazek bez orezu, zatimco vychozi `cover` nahled vyplni a muze jej oriznout. Podporovane jsou take `thumbnail=top`, `thumbnail=center` a `thumbnail=bottom`; vsechny pouzivaji `cover` a meni svisle zarovnani. Nezname instrukce se ignoruji a dalsi hodnoty mohou byt ve stejnem poli oddelene mezerou, carkou nebo strednikem.
 
+Dva JPG nahledy stejneho objektu lze spojit do jednoho radku pridanim `ThumbnailPair=<ID>` do IPTC Special Instructions u obou souboru. Skupina musi obsahovat prave jeden portretni a jeden horizontalni obrazek se stejnym ID v ramci galerie. Web je automaticky seradi portretem vlevo, zachova jejich pomer stran a puvodni `Thumbnail=...` instrukce se nadale zpracovava samostatne. Neplatna nebo neuplna skupina se zobrazi beznym zpusobem.
+
 Razeni je abecedni. Pro pevne poradi pouzij prefixy `01-`, `02-`, `03-`.
 
 Podporovane formaty galerie: JPG, JPEG, PNG, GIF, BMP, WEBP a AVIF. Soubory MP4 a WEBM se na Firebase nepublikuji.

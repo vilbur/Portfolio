@@ -87,6 +87,20 @@ function Get-ThumbnailInstruction {
   return "cover"
 }
 
+function Get-ThumbnailPairInstruction {
+  param([string]$SpecialInstructions)
+
+  if ([string]::IsNullOrWhiteSpace($SpecialInstructions)) { return $null }
+
+  $instructionMatch = [regex]::Match(
+    $SpecialInstructions,
+    '(?i)(?<![\p{L}\p{N}_-])thumbnailpair\s*=\s*([^\s,;=]+)(?=$|[\s,;])'
+  )
+  if (-not $instructionMatch.Success) { return $null }
+
+  return $instructionMatch.Groups[1].Value.Trim().ToLowerInvariant()
+}
+
 function Get-IptcDatasetText {
   param(
     [string]$Path,

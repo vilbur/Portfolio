@@ -32,9 +32,25 @@ foreach ($thumbnailCase in $thumbnailCases) {
   }
 }
 
+$thumbnailPairCases = @(
+  @{ Input = $null; Expected = $null },
+  @{ Input = "ThumbnailPair=1"; Expected = "1" },
+  @{ Input = "Thumbnail=contain`nThumbnailPair=Object-A"; Expected = "object-a" },
+  @{ Input = "credit=artist; thumbnailpair = pair_2; future=value"; Expected = "pair_2" },
+  @{ Input = "ThumbnailPair=object/side.a"; Expected = "object/side.a" },
+  @{ Input = "ThumbnailPair="; Expected = $null },
+  @{ Input = "ThumbnailPair==bad"; Expected = $null }
+)
+foreach ($thumbnailPairCase in $thumbnailPairCases) {
+  $actual = Get-ThumbnailPairInstruction -SpecialInstructions $thumbnailPairCase.Input
+  if ($actual -ne $thumbnailPairCase.Expected) {
+    throw "Thumbnail pair instruction '$($thumbnailPairCase.Input)' resolved to '$actual' instead of '$($thumbnailPairCase.Expected)'."
+  }
+}
+
 $iptcFixturePath = Join-Path ([System.IO.Path]::GetTempPath()) ("portfolio-iptc-" + [guid]::NewGuid().ToString("N") + ".jpg")
 try {
-  $iptcValue = [System.Text.Encoding]::UTF8.GetBytes("credit=artist; THUMBNAIL = contain")
+  $iptcValue = [System.Text.Encoding]::UTF8.GetBytes("credit=artist; THUMBNAIL = contain; ThumbnailPair=IPTC-1")
   $iptcPayload = New-Object "System.Collections.Generic.List[byte]"
   $iptcPayload.AddRange([byte[]][System.Text.Encoding]::ASCII.GetBytes("Photoshop 3.0`0"))
   $iptcPayload.AddRange([byte[]]@(0x1C, 0x02, 0x28, [byte]($iptcValue.Length -shr 8), [byte]($iptcValue.Length -band 0xFF)))
@@ -50,8 +66,11 @@ try {
   if ((Get-ThumbnailInstruction -SpecialInstructions $parsedIptc) -ne "contain") {
     throw "Photoshop APP13/IPTC Special Instructions were not parsed as thumbnail=contain."
   }
+  if ((Get-ThumbnailPairInstruction -SpecialInstructions $parsedIptc) -ne "iptc-1") {
+    throw "Photoshop APP13/IPTC Special Instructions were not parsed as ThumbnailPair=IPTC-1."
+  }
 } finally {
   if (Test-Path -LiteralPath $iptcFixturePath) { Remove-Item -LiteralPath $iptcFixturePath -Force }
 }
 
-Write-Output "Metadata tests passed: localized content, safe folder links and thumbnail instructions."
+Write-Output "Metadata tests passed: localized content, safe folder links and independent thumbnail instructions."
