@@ -213,6 +213,7 @@
             czechNative: "Czech – Native",
             expertiseLabel: "Expertise",
             softwareToolsLabel: "Software & Tools",
+            linksLabel: "Links",
             points: {
               models: "3D models",
               visualizations: "3D visualizations",
@@ -300,6 +301,7 @@
             czechNative: "Čeština – rodilý mluvčí",
             expertiseLabel: "Specializace",
             softwareToolsLabel: "Software a nástroje",
+            linksLabel: "Odkazy",
             points: {
               models: "3D modely",
               visualizations: "3D vizualizace",
