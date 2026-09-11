@@ -7,6 +7,17 @@
   const folderMetadata = window.PORTFOLIO_FOLDER_METADATA ?? {};
   const orderPrefixPattern = /^\s*\d+[\s._-]+/;
 
+  const imageDescriptionKeys = {
+    "Some fun with 3DsMax nad Vray": "zemeklon",
+    "product render": "productRender",
+    "All stuff is my work, except kitchen desk.": "mafiaKitchen",
+    "All stuff is my work, except fridge and fox ;)": "mafiaFridge",
+    "All stuff is my work, except bed.": "mafiaBed",
+    "First real project for Fibix studio. Visualization reconstruction of the gallery and cafe in Mariánské Lázně.": "galerieEdison",
+    "Real-time rendered visualization for presentation of capabilities of Fibix editor. All stuff is my work. Architecture is based on reference of real house.": "vilaLignum",
+    "Real-time rendered visualization for developers purposes in early times of Fibix editor. All stuff is my work.": "logHouse",
+  };
+
   const labels = {
     "3d-print": "3D Print",
     "high-poly": "High Poly",
@@ -120,11 +131,13 @@
       : metadataFor(galleryPath);
     const title = entry.title?.trim() || null;
     const description = entry.description?.trim() || null;
+    const descriptionKey = imageDescriptionKeys[description] || null;
     const videoUrl = normalizeHttpUrl(entry.videoUrl);
 
     return {
       title,
       description,
+      descriptionKey,
       category,
       categoryLabel: subcategoryLabel,
       subcategory,
@@ -145,12 +158,13 @@
 
   window.PORTFOLIO_DATA = {
     site: {
-      name: "VILBUR 3D ARTIST",
+      name: "Lubor Černý 3D ARTIST",
       email: "cerny.vil@gmail.com",
       emailHref: "mailto:cerny.vil+portfolio@gmail.com",
       phoneDisplay: "+420 608 738 950",
       phoneHref: "tel:+420608738950",
       featuredImage: "assets/library/01 Unreal Engine/Maserati-Ghibli/Maserati-Ghibli-detail.jpg",
+      imageDescriptionKeys,
       translations: {
         en: {
           page: {
@@ -193,6 +207,7 @@
             education: "SUPŠ Turnov – Goldsmithing",
             languagesLabel: "Language skills",
             englishB2: "English – B2",
+            computerSkillsLabel: "Computer Skills",
             points: {
               models: "3D models",
               visualizations: "3D visualizations",
@@ -201,6 +216,16 @@
             },
             photoAlt: "Portrait of Lubor Černý",
             resume: "Download resume",
+          },
+          imageDescriptions: {
+            zemeklon: "Some fun with 3ds Max and V-Ray.",
+            productRender: "Product render.",
+            mafiaKitchen: "All assets are my work except the kitchen counter.",
+            mafiaFridge: "All assets are my work except the refrigerator and fox. ;)",
+            mafiaBed: "All assets are my work except the bed.",
+            galerieEdison: "My first real project for Fibix Studio: a visualization of the reconstructed gallery and café in Mariánské Lázně.",
+            vilaLignum: "A real-time visualization presenting the capabilities of the Fibix editor. I created all assets; the architecture is based on a real house reference.",
+            logHouse: "A real-time visualization created for development during the early days of the Fibix editor. I created all assets.",
           },
           contact: {
             eyebrow: "Contact",
@@ -266,6 +291,7 @@
             education: "SUPŠ Turnov – obor zlatník",
             languagesLabel: "Jazykové znalosti",
             englishB2: "Angličtina – B2",
+            computerSkillsLabel: "Počítačové znalosti",
             points: {
               models: "3D modely",
               visualizations: "3D vizualizace",
@@ -274,6 +300,16 @@
             },
             photoAlt: "Portrét Lubora Černého",
             resume: "Stáhnout životopis",
+          },
+          imageDescriptions: {
+            zemeklon: "Trocha zábavy ve 3ds Maxu a V-Ray.",
+            productRender: "Produktový render.",
+            mafiaKitchen: "Všechny objekty jsou moje práce kromě kuchyňské linky.",
+            mafiaFridge: "Všechny objekty jsou moje práce kromě lednice a lišky. ;)",
+            mafiaBed: "Všechny objekty jsou moje práce kromě postele.",
+            galerieEdison: "Můj první skutečný projekt pro studio Fibix: vizualizace rekonstrukce galerie a kavárny v Mariánských Lázních.",
+            vilaLignum: "Vizualizace v reálném čase představující možnosti editoru Fibix. Všechny objekty jsou moje práce; architektura vychází z předlohy skutečného domu.",
+            logHouse: "Vizualizace v reálném čase vytvořená pro vývoj v počátcích editoru Fibix. Všechny objekty jsou moje práce.",
           },
           contact: {
             eyebrow: "Kontakt",

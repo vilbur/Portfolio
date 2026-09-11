@@ -607,7 +607,8 @@ img {
 }
 
 .section-heading h2,
-.about h2 {
+.about h2,
+.contact h2 {
   font-size: clamp(3.6rem, 7.4vw, 8rem);
 }
 
@@ -1172,7 +1173,6 @@ img {
 
 .contact h2 {
   max-width: 1000px;
-  font-size: clamp(4.4rem, 10.8vw, 11rem);
 }
 
 .contact-row {
@@ -1835,7 +1835,8 @@ img {
     padding: 38px 0 64px;
   }
 
-  .about h2 {
+  .about h2,
+  .contact h2 {
     font-size: clamp(2.15rem, 10vw, 3.25rem);
     line-height: 0.9;
   }
@@ -1910,10 +1911,6 @@ img {
   .project-participation-row dt,
   .project-participation-row li {
     font-size: 1rem;
-  }
-
-  .contact h2 {
-    font-size: clamp(4.2rem, 20vw, 6.8rem);
   }
 
   .site-footer {
@@ -2163,10 +2160,6 @@ img {
 
   .language-switcher button {
     min-width: 27px;
-  }
-
-  .contact h2 {
-    font-size: clamp(3.2rem, 16vw, 4.2rem);
   }
 
   .project-grid .project-card {

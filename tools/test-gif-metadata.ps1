@@ -2,42 +2,38 @@ $ErrorActionPreference = "Stop"
 $toolsRoot = (Resolve-Path $PSScriptRoot).Path
 . (Join-Path $toolsRoot "gif-metadata.ps1")
 
-$fixturePath = Join-Path ([System.IO.Path]::GetTempPath()) ("portfolio-gif-comment-" + [guid]::NewGuid().ToString("N") + ".gif")
-$plainFixturePath = Join-Path ([System.IO.Path]::GetTempPath()) ("portfolio-gif-plain-" + [guid]::NewGuid().ToString("N") + ".gif")
-
-try {
-  $plainGif = [Convert]::FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
-  [System.IO.File]::WriteAllBytes($plainFixturePath, $plainGif)
-
-  $commentText = "Video URL: https://youtu.be/dQw4w9WgXcQ?t=42"
-  $commentBytes = [System.Text.Encoding]::UTF8.GetBytes($commentText)
-  $gifWithComment = New-Object "System.Collections.Generic.List[byte]"
-  $gifWithComment.AddRange([byte[]]$plainGif[0..($plainGif.Length - 2)])
-  $gifWithComment.AddRange([byte[]]@(0x21, 0xFE, [byte]$commentBytes.Length))
-  $gifWithComment.AddRange([byte[]]$commentBytes)
-  $gifWithComment.Add(0x00)
-  $gifWithComment.Add(0x3B)
-  [System.IO.File]::WriteAllBytes($fixturePath, $gifWithComment.ToArray())
-
-  $metadata = Get-GifMetadata -Path $fixturePath
-  if ($metadata.VideoUrl -ne "https://youtu.be/dQw4w9WgXcQ?t=42") {
-    throw "GIF comment URL was not normalized into VideoUrl."
+$videoCases = @(
+  @{
+    Name = "Galerie Edison - tAJ-1rcjf-8&t=4s.gif"
+    Expected = "https://www.youtube.com/watch?v=tAJ-1rcjf-8&t=4s"
+  },
+  @{
+    Name = "Vila Lignum - Crjribz7aOU.gif"
+    Expected = "https://www.youtube.com/watch?v=Crjribz7aOU"
+  },
+  @{
+    Name = "Crib - 6vY3X06milo&t=4s.gif"
+    Expected = "https://www.youtube.com/watch?v=6vY3X06milo&t=4s"
   }
+)
 
-  $plainMetadata = Get-GifMetadata -Path $plainFixturePath
-  if ($null -ne $plainMetadata.VideoUrl) {
-    throw "A plain GIF without a video URL was incorrectly classified as video metadata."
+foreach ($case in $videoCases) {
+  $actual = (Get-GifMetadata -Path $case.Name).VideoUrl
+  if ($actual -ne $case.Expected) {
+    throw "GIF filename '$($case.Name)' resolved to '$actual' instead of '$($case.Expected)'."
   }
-
-  if ((Get-VideoUrlFromText -Text "not a URL") -ne $null) {
-    throw "Invalid GIF comment text was accepted as a video URL."
-  }
-  if ((Get-VideoUrlFromText -Text "https://example.com/not-a-video") -ne $null) {
-    throw "A non-YouTube URL was accepted as a video URL."
-  }
-} finally {
-  if (Test-Path -LiteralPath $fixturePath) { Remove-Item -LiteralPath $fixturePath -Force }
-  if (Test-Path -LiteralPath $plainFixturePath) { Remove-Item -LiteralPath $plainFixturePath -Force }
 }
 
-Write-Output "GIF metadata tests passed: URL comments and plain GIF fallback."
+$imageCases = @(
+  "ordinary-gallery-image.gif",
+  "Almost - too-short.gif",
+  "No separator tAJ-1rcjf-8.gif"
+)
+
+foreach ($name in $imageCases) {
+  if ($null -ne (Get-GifMetadata -Path $name).VideoUrl) {
+    throw "Ordinary GIF filename '$name' was incorrectly classified as video."
+  }
+}
+
+Write-Output "GIF filename tests passed: YouTube suffix detection and ordinary GIF behavior."

@@ -172,6 +172,8 @@
       value,
     );
   };
+  const localizedImageDescription = (description, descriptionKey) =>
+    descriptionKey ? translate(`imageDescriptions.${descriptionKey}`) : (description || "");
 
   const specializationWords = () => translationValue("hero.specializations") ?? ["models", "print", "visualizations"];
   const showSpecialization = (index, animate = true) => {
@@ -344,6 +346,7 @@
   const makeProjectMedia = (project, modifier = "") => {
     const wrapper = document.createElement("div");
     wrapper.className = `project-media ${modifier}`.trim();
+    const alternativeText = project.title || localizedImageDescription(project.description, project.descriptionKey);
     const isLightboxMedia = modifier.includes("lightbox");
     if (!isLightboxMedia && (project.mediaType === "image" || project.videoUrl)) {
       wrapper.dataset.thumbnail = project.thumbnail;
@@ -354,7 +357,7 @@
       if (youtubeEmbedUrl) {
         const frame = document.createElement("iframe");
         frame.src = youtubeEmbedUrl;
-        frame.title = project.alt || translate("gallery.openVideo");
+        frame.title = alternativeText || translate("gallery.openVideo");
         frame.loading = "eager";
         frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
         frame.allowFullscreen = true;
@@ -377,7 +380,7 @@
       video.setAttribute("webkit-playsinline", "");
       video.setAttribute("autoplay", "");
       video.setAttribute("loop", "");
-      video.setAttribute("aria-label", project.alt);
+      video.setAttribute("aria-label", alternativeText);
       if (!isLightboxVideo && lightbox.open) {
         video.dataset.suspendedSrc = project.image;
       } else {
@@ -399,7 +402,7 @@
     } else if (project.image) {
       const image = document.createElement("img");
       image.src = project.image;
-      image.alt = project.alt;
+      image.alt = alternativeText;
       image.loading = isLightboxMedia ? "eager" : "lazy";
       image.decoding = "async";
       image.draggable = !isLightboxMedia;
@@ -822,11 +825,12 @@
     resetZoom();
     resetSwipeOffset();
     const project = visibleProjects[activeProjectIndex];
+    const projectDescription = localizedImageDescription(project.description, project.descriptionKey);
     lightboxMedia.classList.toggle("has-video", project.mediaType === "video");
     lightboxMedia.replaceChildren(makeProjectMedia(project, "project-media--lightbox"));
     lightboxTitle.textContent = project.title || "";
-    lightboxMeta.textContent = project.description || "";
-    lightboxCaption.hidden = !project.title && !project.description;
+    lightboxMeta.textContent = projectDescription;
+    lightboxCaption.hidden = !project.title && !projectDescription;
     lightboxCategory.textContent =
       data.categories.find((category) => category.id === project.category)?.label ?? project.category;
     lightbox.dataset.activeIndex = String(activeProjectIndex);
@@ -1162,6 +1166,7 @@
         image: `${entry.path}?v=${entry.version}`,
         title: entry.title || null,
         description: entry.description || null,
+        descriptionKey: data.site.imageDescriptionKeys?.[entry.description] || null,
         alt: entry.title || entry.description || "",
       }))
     : [featured];
@@ -1195,9 +1200,11 @@
       image.setAttribute("aria-hidden", String(imageIndex !== activeHeroIndex));
     });
     const slide = heroSlides[activeHeroIndex];
+    const slideDescription = localizedImageDescription(slide.description, slide.descriptionKey);
+    heroImages[activeHeroIndex].alt = slide.title || slideDescription;
     heroTitle.textContent = slide.title || "";
-    heroMeta.textContent = slide.description || "";
-    heroCaption.hidden = !slide.title && !slide.description;
+    heroMeta.textContent = slideDescription;
+    heroCaption.hidden = !slide.title && !slideDescription;
   };
 
   const stopHeroCarousel = () => window.clearInterval(heroTimer);

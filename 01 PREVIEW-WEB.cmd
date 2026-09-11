@@ -8,5 +8,11 @@ if errorlevel 1 (
   pause >nul
   exit /b 1
 )
-start "" "%~dp0index.html"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\preview.ps1"
+if errorlevel 1 (
+  echo.
+  echo Preview server failed. Press any key to close.
+  pause >nul
+  exit /b 1
+)
 exit /b 0
