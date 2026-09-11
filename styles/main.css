@@ -972,18 +972,25 @@ img {
 }
 
 .about-profile {
-  display: grid;
-  max-width: 960px;
-  margin-top: clamp(44px, 6vw, 78px);
-  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
-  align-items: end;
-  gap: clamp(38px, 7vw, 100px);
+  display: contents;
+}
+
+.about.about-me {
+  grid-template-rows: auto auto auto;
+  row-gap: 0;
+}
+
+.about-me-heading {
+  grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 .profile-photo {
-  width: 100%;
+  width: min(100%, 340px);
   aspect-ratio: 1;
-  margin: 0;
+  margin: 28px 0 0;
+  grid-column: 1;
+  grid-row: 3;
   overflow: hidden;
   background: transparent;
 }
@@ -997,7 +1004,16 @@ img {
 
 .profile-bio {
   min-width: 0;
+  margin-top: clamp(44px, 6vw, 78px);
+  grid-column: 2;
+  grid-row: 2 / span 2;
   color: var(--muted);
+}
+
+.profile-identity {
+  margin-top: clamp(44px, 6vw, 78px);
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .profile-identity h3 {
@@ -1022,7 +1038,7 @@ img {
 
 .profile-facts {
   display: grid;
-  margin: clamp(34px, 5vw, 58px) 0 0;
+  margin: 0;
 }
 
 .profile-facts div {
@@ -1099,7 +1115,11 @@ img {
 }
 
 .profile-expertise-list li {
-  padding-left: 14px;
+  padding-left: 0;
+}
+
+.profile-expertise-list li::before {
+  display: none;
 }
 
 .about-resume {
@@ -1935,21 +1955,34 @@ img {
   }
 
   .about-profile {
-    margin-top: 28px;
-    grid-template-columns: minmax(0, 1fr) clamp(80px, 24vw, 96px);
-    align-items: start;
-    gap: 16px;
+    display: contents;
+  }
+
+  .about.about-me {
+    grid-template-rows: auto;
+    row-gap: 20px;
+  }
+
+  .profile-identity,
+  .profile-photo {
+    grid-column: 1;
+  }
+
+  .profile-identity {
+    margin-top: 0;
+    grid-row: 2;
   }
 
   .profile-photo {
-    width: 100%;
-    grid-column: 2;
-    grid-row: 1;
+    width: min(100%, 280px);
+    margin-top: 0;
+    grid-row: 3;
   }
 
   .profile-bio {
+    margin-top: 0;
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 4;
   }
 
   .profile-identity h3 {
@@ -1963,7 +1996,7 @@ img {
   }
 
   .profile-facts {
-    margin-top: 20px;
+    margin-top: 0;
   }
 
   .profile-facts div {
@@ -2051,10 +2084,6 @@ img {
 }
 
 @media (max-width: 680px) and (orientation: portrait) {
-  .about-profile {
-    grid-template-columns: minmax(0, 1fr) 30vw;
-  }
-
   .profile-photo {
     align-self: start;
   }
