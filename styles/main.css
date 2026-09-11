@@ -1092,6 +1092,16 @@ img {
   content: "";
 }
 
+.profile-expertise-list {
+  gap: 6px;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.profile-expertise-list li {
+  padding-left: 14px;
+}
+
 .about-resume {
   display: inline-flex;
   width: fit-content;
@@ -1114,6 +1124,10 @@ img {
 .selected-projects {
   margin-top: 48px;
   border-top: 1px solid var(--line);
+}
+
+.about-copy > .selected-projects {
+  margin-top: 0;
 }
 
 .project-participation-list {
